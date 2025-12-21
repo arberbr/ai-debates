@@ -100,7 +100,7 @@ Provide ONLY the title, nothing else. No explanations, no additional text.`;
     this.logger.log('Rewriting topic to concise format...');
 
     // Use a small, fast model for topic rewriting
-    const smallModel = 'google/gemini-flash-1.5';
+    const smallModel = 'google/gemini-flash-2.5';
 
     const rewritePrompt = `Analyze the following topic or article and rewrite it in a concise, short way (maximum 2-3 sentences or a brief title).
 

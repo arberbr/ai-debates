@@ -31,13 +31,13 @@ export class OpenRouterService {
     if (!apiKey) {
       this.logger.error('No API key provided');
       throw new Error(
-        'OpenRouter API key is required. Provide it in the request or set OPENROUTER_API_KEY environment variable.',
+        'OpenRouter API key is required. Provide it in the request!',
       );
     }
 
     if (!apiKey.trim()) {
       this.logger.error('API key is empty');
-      throw new Error('OpenRouter API key cannot be empty.');
+      throw new Error('OpenRouter API key cannot be empty!');
     }
 
     const headers = {
@@ -81,7 +81,7 @@ export class OpenRouterService {
           `Invalid response format for ${model}:`,
           JSON.stringify(data).substring(0, 500),
         );
-        throw new Error('Invalid response format from OpenRouter');
+        throw new Error('Invalid response format from OpenRouter!');
       }
 
       const message = data.choices[0].message;
@@ -147,10 +147,9 @@ export class OpenRouterService {
     );
 
     if (successCount === 0) {
-      this.logger.error('All model queries failed!');
+      this.logger.error('All model queries failed! Check your API key and try again.');
     }
 
     return result;
   }
 }
-
