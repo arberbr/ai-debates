@@ -15,7 +15,7 @@ import type {
   SavedDebate,
   DebateConfig
 } from '@/lib/types'
-import { STORAGE_KEYS } from '@/lib/constants'
+import { STORAGE_KEYS, getApiBaseUrl } from '@/lib/constants'
 import { useApiKey } from '@/hooks/useApiKey'
 import { useDebates } from '@/hooks/useDebates'
 import { cleanString } from '@/lib/debate-utils'
@@ -174,7 +174,7 @@ function DebateComponent() {
         // Step 1: Generate title
         setStatus('Generating title...')
         try {
-          const titleResponse = await fetch('http://localhost:3001/api/debate/generate-title', {
+          const titleResponse = await fetch(`${getApiBaseUrl()}/api/debate/generate-title`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -209,7 +209,7 @@ function DebateComponent() {
         }
 
         // Step 2: Start debate with SSE streaming
-        const response = await fetch('http://localhost:3001/api/debate/start', {
+        const response = await fetch(`${getApiBaseUrl()}/api/debate/start`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -228,7 +228,7 @@ function DebateComponent() {
           let errorText = ''
           try {
             errorText = await response.text()
-          } catch (e) {
+          } catch {
             errorText = 'Unknown error'
           }
           
@@ -407,7 +407,7 @@ function DebateComponent() {
             setStatus(data.message)
           }
           break
-        case 'error':
+        case 'error': {
           const errorMessage = data.message || 'An error occurred'
           setError(errorMessage)
           setStatus(`Error: ${errorMessage}`)
@@ -425,6 +425,7 @@ function DebateComponent() {
             clearApiKey()
           }
           break
+        }
       }
     }
 

@@ -260,6 +260,100 @@ function AboutComponent() {
                 to use the platform. Your API key is stored locally in your browser and sent with each request to OpenRouter.
               </p>
             </div>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Environment Configuration</h3>
+              <p className="text-base text-muted-foreground leading-relaxed">
+                The backend API URL can be configured via the <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">VITE_API_BASE_URL</code> environment variable. 
+                By default, it connects to <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">http://localhost:3001</code>. 
+                Create a <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">.env</code> file in the project root to customize this value.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Additional Features */}
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-foreground">Additional Features</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Debates List</h3>
+              <p className="text-base text-muted-foreground leading-relaxed">
+                The <strong>Debates</strong> page provides a comprehensive view of all your saved debates. Each debate card displays:
+              </p>
+              <ul className="list-disc list-outside space-y-2 ml-6 text-base text-muted-foreground mt-2">
+                <li>Debate topic and timestamp</li>
+                <li>Models used for each side (FOR and AGAINST)</li>
+                <li>Reading time estimates for each side</li>
+                <li>Number of debate rounds</li>
+                <li>Final winner (if available)</li>
+                <li>Token usage and cost statistics</li>
+              </ul>
+              <p className="text-base text-muted-foreground leading-relaxed mt-2">
+                You can click on any debate card to view its full details, or delete debates you no longer need.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Leaderboard & Statistics</h3>
+              <p className="text-base text-muted-foreground leading-relaxed">
+                The <strong>Leaderboard</strong> page provides detailed analytics about your debates:
+              </p>
+              <ul className="list-disc list-outside space-y-2 ml-6 text-base text-muted-foreground mt-2">
+                <li>
+                  <strong>Model Performance:</strong> Win rates, average scores, total wins/losses/ties, and average cost per debate for each model
+                </li>
+                <li>
+                  <strong>Overall Statistics:</strong> Total debates, total cost, total tokens used, and average rounds per debate
+                </li>
+                <li>
+                  <strong>Most Debated Topics:</strong> See which topics you've debated most frequently
+                </li>
+                <li>
+                  <strong>Sortable Rankings:</strong> Sort models by win rate, total wins, average score, or number of debates
+                </li>
+              </ul>
+              <p className="text-base text-muted-foreground leading-relaxed mt-2">
+                Use the leaderboard to identify which models perform best in your debates and track your usage over time.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Usage Tracking & Cost Monitoring</h3>
+              <p className="text-base text-muted-foreground leading-relaxed">
+                Every debate tracks detailed usage statistics automatically:
+              </p>
+              <ul className="list-disc list-outside space-y-2 ml-6 text-base text-muted-foreground mt-2">
+                <li>
+                  <strong>Token Usage:</strong> Total tokens, prompt tokens, and completion tokens for the entire debate
+                </li>
+                <li>
+                  <strong>Cost Tracking:</strong> Real-time cost calculation based on OpenRouter's pricing for each model used
+                </li>
+                <li>
+                  <strong>Per-Debate Breakdown:</strong> View costs and token usage for individual debates on the debate detail page
+                </li>
+                <li>
+                  <strong>Aggregate Statistics:</strong> See total costs and tokens across all your debates in the leaderboard
+                </li>
+              </ul>
+              <p className="text-base text-muted-foreground leading-relaxed mt-2">
+                This helps you monitor your API usage and costs, making it easier to manage your OpenRouter account budget.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Reading Time Calculations</h3>
+              <p className="text-base text-muted-foreground leading-relaxed">
+                The application automatically calculates estimated reading time for each side of the debate. Reading times are based on:
+              </p>
+              <ul className="list-disc list-outside space-y-2 ml-6 text-base text-muted-foreground mt-2">
+                <li>200 words per minute reading speed</li>
+                <li>Full content including opening statements, all rebuttal rounds, and conclusions</li>
+                <li>Plain text extraction from markdown (excluding code blocks, formatting, etc.)</li>
+              </ul>
+              <p className="text-base text-muted-foreground leading-relaxed mt-2">
+                These estimates help you understand the length and depth of each debate before you start reading.
+              </p>
+            </div>
           </CardContent>
         </Card>
 

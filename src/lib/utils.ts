@@ -18,21 +18,21 @@ export function calculateReadingTime(content: string, wordsPerMinute: number = 2
 
   // Strip markdown syntax to get plain text
   // Remove markdown headers, bold, italic, links, code blocks, etc.
-  let plainText = content
+  const plainText = content
     // Remove code blocks
     .replace(/```[\s\S]*?```/g, '')
     .replace(/`[^`]*`/g, '')
     // Remove links but keep the text
-    .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     // Remove markdown formatting
-    .replace(/\*\*([^\*]+)\*\*/g, '$1')
-    .replace(/\*([^\*]+)\*/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
     .replace(/__([^_]+)__/g, '$1')
     .replace(/_([^_]+)_/g, '$1')
     // Remove headers
     .replace(/^#{1,6}\s+/gm, '')
     // Remove list markers
-    .replace(/^[\*\-\+]\s+/gm, '')
+    .replace(/^[*\-+]\s+/gm, '')
     .replace(/^\d+\.\s+/gm, '')
     // Remove blockquotes
     .replace(/^>\s+/gm, '')
@@ -92,16 +92,16 @@ export function calculateTotalReadingTimeForSide(
     if (!content || content.trim().length === 0) return 0
     
     // Strip markdown syntax (same as calculateReadingTime)
-    let plainText = content
+    const plainText = content
       .replace(/```[\s\S]*?```/g, '')
       .replace(/`[^`]*`/g, '')
-      .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
-      .replace(/\*\*([^\*]+)\*\*/g, '$1')
-      .replace(/\*([^\*]+)\*/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
       .replace(/__([^_]+)__/g, '$1')
       .replace(/_([^_]+)_/g, '$1')
       .replace(/^#{1,6}\s+/gm, '')
-      .replace(/^[\*\-\+]\s+/gm, '')
+      .replace(/^[*\-+]\s+/gm, '')
       .replace(/^\d+\.\s+/gm, '')
       .replace(/^>\s+/gm, '')
       .replace(/^---+$/gm, '')

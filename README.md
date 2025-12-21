@@ -11,6 +11,10 @@ A modern web application that facilitates structured debates between AI models o
 - 🎨 **Modern UI**: Beautiful, responsive interface with dark mode support built with Tailwind CSS and shadcn/ui
 - 📊 **Real-time Updates**: Server-Sent Events (SSE) provide live updates as debates progress
 - 📝 **Markdown Support**: Debate content is rendered with full markdown support for better readability
+- 📋 **Debates List**: View all saved debates with details including models, reading times, and usage statistics
+- 🏆 **Leaderboard**: Track model performance with win rates, average scores, and comprehensive statistics
+- 💰 **Usage Tracking**: Monitor token usage and costs for each debate and overall
+- ⏱️ **Reading Time**: Automatic calculation of estimated reading time for each debate side
 
 ## Tech Stack
 
@@ -79,16 +83,18 @@ The frontend will be available at `http://localhost:5173` (or the next available
 ### Viewing Debates
 
 - **Active Debates**: Watch debates progress in real-time with live status updates
-- **Saved Debates**: All completed debates are automatically saved and can be accessed from the home page
-- **Debate Details**: View full transcripts, judge evaluations, scores, and final results
+- **Debates List**: Access the "Debates" page from the navigation to view all saved debates with summaries, models used, reading times, and usage statistics
+- **Debate Details**: Click on any debate to view full transcripts, judge evaluations, scores, usage statistics, and final results
+- **Leaderboard**: View the "Leaderboard" page to see model performance statistics, overall usage metrics, and most debated topics
 
 ### Debate Process
 
-1. **Topic Rewriting**: The topic is analyzed and rewritten for clarity
-2. **Topic Analysis**: Both models analyze the topic and prepare their initial positions
-3. **Debate Rounds**: Models engage in structured rounds, responding to each other's arguments
-4. **Judge Evaluation**: Three AI judges (GPT-5.2, Claude Sonnet 4.5, Gemini 3 Pro) independently evaluate the debate
-5. **Final Result**: Aggregate scores determine the winner
+1. **Title Generation**: A concise title (7-12 words) is generated for easy identification
+2. **Opening Statements**: Both models present their initial arguments simultaneously
+3. **Rebuttal Rounds**: Models engage in structured rounds (1-5), responding to each other's arguments
+4. **Conclusions**: Both models deliver final statements summarizing their positions
+5. **Judge Evaluation**: Three AI judges (GPT-5.2, Claude Sonnet 4.5, Gemini 3 Pro) independently evaluate the debate
+6. **Final Result**: Aggregate scores determine the winner based on average scores with a 5-point threshold
 
 ## Project Structure
 
@@ -96,12 +102,21 @@ The frontend will be available at `http://localhost:5173` (or the next available
 ai-debates/
 ├── src/
 │   ├── components/
+│   │   ├── debate/      # Debate-specific components (DebateContent, JudgeEvaluationCard, etc.)
 │   │   └── ui/          # shadcn/ui components (Button, Card, Input, etc.)
+│   ├── hooks/           # Custom React hooks (useApiKey, useDebates, useLocalStorage)
 │   ├── routes/          # TanStack Router file-based routes
+│   │   ├── __root.tsx   # Root layout with navigation
 │   │   ├── index.tsx    # Home page with debate creation form
+│   │   ├── about.tsx    # About page with detailed documentation
+│   │   ├── debates.tsx  # Debates list page
+│   │   ├── leaderboard.tsx  # Leaderboard and statistics page
 │   │   └── debate.$debateId.tsx  # Debate viewing page
 │   ├── lib/
-│   │   └── utils.ts     # Utility functions
+│   │   ├── constants.ts # App constants and configuration
+│   │   ├── types.ts     # TypeScript type definitions
+│   │   ├── utils.ts     # Utility functions
+│   │   └── debate-utils.ts  # Debate-specific utilities
 │   ├── main.tsx         # Application entry point
 │   └── index.css        # Global styles
 ├── backend/             # NestJS backend (see backend/README.md)
@@ -119,7 +134,19 @@ ai-debates/
 
 ## Environment Variables
 
-The frontend doesn't require any environment variables. The OpenRouter API key is stored in the browser's localStorage and sent with each request.
+The frontend supports the following optional environment variable:
+
+- `VITE_API_BASE_URL` - Backend API base URL (default: `http://localhost:3001`)
+
+Create a `.env` file in the project root to customize:
+
+```env
+VITE_API_BASE_URL=http://localhost:3001
+```
+
+**Note:** In Vite, environment variables must be prefixed with `VITE_` to be exposed to client-side code.
+
+The OpenRouter API key is stored in the browser's localStorage and sent with each request (no environment variable needed).
 
 ## Browser Compatibility
 
@@ -165,9 +192,10 @@ Routes are file-based using TanStack Router. Add new routes by creating files in
 
 ### Backend Connection Issues
 
-- Ensure the backend is running on `http://localhost:3001`
+- Ensure the backend is running on `http://localhost:3001` (or your configured port)
 - Check browser console for CORS or connection errors
-- Verify the backend URL in the debate route file if using a custom port
+- If using a custom backend URL, set the `VITE_API_BASE_URL` environment variable (see Environment Variables section)
+- Verify the backend is accessible by checking the API endpoints directly
 
 ### Debate Not Starting
 

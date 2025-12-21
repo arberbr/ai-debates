@@ -4,12 +4,13 @@ NestJS backend service that orchestrates structured debates between AI models vi
 
 ## Features
 
-- 🎯 **Topic Processing**: Rewrites and analyzes debate topics for clarity
+- 🎯 **Topic Processing**: Generates concise titles and processes debate topics
 - 🔄 **Multi-Round Debates**: Orchestrates structured debate rounds between two AI models
 - ⚖️ **AI Judge Panel**: Three independent AI judges evaluate each debate
 - 📡 **Real-time Streaming**: Server-Sent Events (SSE) for live progress updates
 - 🔌 **OpenRouter Integration**: Unified API for accessing multiple LLM providers
 - 📊 **Result Calculation**: Aggregates judge scores to determine winners
+- 💰 **Usage Tracking**: Tracks token usage and costs for all API calls
 
 ## Tech Stack
 
@@ -91,12 +92,12 @@ Start a new debate. Returns a Server-Sent Events (SSE) stream.
 ```
 
 **Parameters:**
-- `topic` (string, required): The debate topic, question, or article
+- `topic` (string, required): The debate topic, question, or article (max 300 characters)
 - `yesModel` (string, required): OpenRouter model ID for the "FOR" side
 - `noModel` (string, required): OpenRouter model ID for the "AGAINST" side
 - `rounds` (number, required): Number of debate rounds (1-5)
 - `judgePrompt` (string, optional): Custom instructions for judges
-- `api_key` (string, optional): OpenRouter API key for this request
+- `api_key` (string, optional): OpenRouter API key for this request (falls back to `OPENROUTER_API_KEY` env var)
 
 **Response:** SSE stream with events:
 
@@ -128,6 +129,8 @@ data: {"type":"judging_complete","stage":"judging_complete","data":{"evaluations
 data: {"type":"complete","stage":"complete","data":{...},"message":"Debate process complete",...}
 ```
 
+**Note:** The `complete` event includes the full debate data including usage statistics (tokens and cost).
+
 **Error Events:**
 
 ```text
@@ -136,7 +139,7 @@ data: {"type":"error","stage":"error","message":"Error description",...}
 
 ### POST `/generate-title`
 
-Generate a concise title for a debate topic.
+Generate a concise title (7-12 words) for a debate topic. Uses `mistralai/ministral-14b-2512` for fast, cost-effective title generation.
 
 **Request Body:**
 
@@ -156,6 +159,8 @@ Generate a concise title for a debate topic.
 }
 ```
 
+**Note:** Title generation is optional. If it fails, the frontend uses a fallback (first 80 characters of the topic).
+
 ### GET `/status/:debateId`
 
 Get the last known status for a debate (if tracked).
@@ -172,30 +177,38 @@ Get the last known status for a debate (if tracked).
 
 ## Debate Process Flow
 
-1. **Topic Rewriting** (Optional)
-   - Uses `google/gemini-flash-1.5` to rewrite the topic concisely
-   - Falls back to original topic if rewrite fails
+1. **Opening Statements**
+   - Both debate models generate opening statements in parallel
+   - Each model presents their position (FOR/AGAINST) and main arguments
+   - Target length: 1000-2000 words (approximately 5-10 minutes reading time)
 
-2. **Topic Analysis**
-   - Both debate models analyze the topic in parallel
-   - Each model prepares their initial position (FOR/AGAINST)
+2. **Rebuttal Rounds**
+   - Models engage in structured rounds (1-5 rounds, user-configurable)
+   - Each round includes responses from both sides in parallel
+   - Models have access to full debate history (previous rounds)
+   - Focus on rebutting opponent's arguments from previous round
 
-3. **Debate Rounds**
-   - Models engage in structured rounds
-   - Each round includes responses from both sides
-   - Previous rounds are included in context for subsequent rounds
+3. **Conclusions**
+   - Both models deliver concluding statements in parallel
+   - Each model summarizes their position and final arguments
+   - Target length: 400-1000 words (approximately 2-5 minutes reading time)
+   - Models have access to complete debate transcript
 
 4. **Judge Evaluation**
    - Three judges evaluate independently:
      - `openai/gpt-5.2`
      - `anthropic/claude-sonnet-4.5`
      - `google/gemini-3-pro-preview`
+   - Each judge receives the complete debate transcript
+   - Judges evaluate based on: main points, presentation quality, defense quality, and custom criteria
    - Each judge provides scores (0-100) and reasoning
-   - Judges continue even if one fails
+   - Judges continue even if one fails (resilient design)
 
 5. **Final Result Calculation**
    - Aggregate scores from all judges
-   - Determine winner based on average scores (5-point threshold to avoid ties)
+   - Calculate average scores for both FOR and AGAINST sides
+   - Determine winner based on average scores with 5-point threshold to avoid ties
+   - If difference is ≤5 points, result is declared a TIE
 
 ## Project Structure
 
@@ -266,10 +279,9 @@ const judgeModels = [
 
 ### Model Selection
 
-- **Title Generation**: Uses `mistralai/ministral-14b-2512` (fast, cost-effective)
-- **Topic Rewriting**: Uses `google/gemini-flash-1.5` (fast, cost-effective)
-- **Debate Models**: User-selected via request
-- **Judge Models**: Fixed set (see above)
+- **Title Generation**: Uses `mistralai/ministral-14b-2512` (fast, cost-effective) via `/generate-title` endpoint
+- **Debate Models**: User-selected via request (FOR and AGAINST sides)
+- **Judge Models**: Fixed set of three models (see Default Judge Models section)
 
 ## Error Handling
 
@@ -301,10 +313,11 @@ The backend uses NestJS's built-in Logger:
 
 ## Performance Considerations
 
-- **Parallel Processing**: Topic analysis and debate rounds use parallel API calls where possible
+- **Parallel Processing**: Opening statements, rebuttal rounds, conclusions, and judge evaluations use parallel API calls where possible for efficiency
 - **Timeouts**: Default timeout is 120 seconds per model query (30 seconds for title generation)
 - **Streaming**: SSE allows clients to receive updates without polling
-- **Error Recovery**: Individual failures don't stop the entire debate process
+- **Error Recovery**: Individual failures don't stop the entire debate process (e.g., if one judge fails, others continue)
+- **Usage Tracking**: Token usage and costs are tracked and accumulated across all API calls for each debate
 
 ## Security
 

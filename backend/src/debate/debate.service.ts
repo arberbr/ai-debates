@@ -140,7 +140,7 @@ export class DebateService {
       return fallback.endsWith('...') ? fallback : fallback + '...';
     }
 
-    let title = cleanString(response.content);
+    const title = cleanString(response.content);
     
     this.logger.log(`Title generated: ${title}`);
 
@@ -725,7 +725,7 @@ REASONING:
       /FOR:\s*(\d+(?:\.\d+)?)/i,
       /FOR\s+SCORE[:\s]+(\d+(?:\.\d+)?)/i,
       /FOR\s+[:\s]+(\d+(?:\.\d+)?)/i,
-      /FOR\s*[:\-]\s*(\d+(?:\.\d+)?)/i,
+      /FOR\s*[:-]\s*(\d+(?:\.\d+)?)/i,
     ];
 
     // Try multiple patterns for AGAINST score
@@ -733,7 +733,7 @@ REASONING:
       /AGAINST:\s*(\d+(?:\.\d+)?)/i,
       /AGAINST\s+SCORE[:\s]+(\d+(?:\.\d+)?)/i,
       /AGAINST\s+[:\s]+(\d+(?:\.\d+)?)/i,
-      /AGAINST\s*[:\-]\s*(\d+(?:\.\d+)?)/i,
+      /AGAINST\s*[:-]\s*(\d+(?:\.\d+)?)/i,
     ];
 
     let forScore: number | null = null;
