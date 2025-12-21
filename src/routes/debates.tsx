@@ -142,12 +142,6 @@ function DebatesComponent() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
-      <div className="mb-12 flex justify-center">
-        <Link to="/">
-          <h1 className="text-4xl font-bold text-foreground hover:opacity-80 transition-opacity cursor-pointer">AI Debates</h1>
-        </Link>
-      </div>
-
       <div className="w-full max-w-5xl">
         {savedDebates.length === 0 ? (
           <Card className="w-full">

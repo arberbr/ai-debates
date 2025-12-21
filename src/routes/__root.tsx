@@ -9,16 +9,16 @@ export const Route = createRootRoute({
           <div className="flex items-center justify-center gap-6">
             <Link
               to="/"
-              className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
+              className="text-lg"
               activeProps={{
                 className: "text-foreground font-semibold"
               }}
             >
-              Home
+              AI Debates
             </Link>
             <Link
               to="/debates"
-              className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
+              className="text-lg"
               activeProps={{
                 className: "text-foreground font-semibold"
               }}
@@ -27,7 +27,7 @@ export const Route = createRootRoute({
             </Link>
             <Link
               to="/leaderboard"
-              className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
+              className="text-lg"
               activeProps={{
                 className: "text-foreground font-semibold"
               }}

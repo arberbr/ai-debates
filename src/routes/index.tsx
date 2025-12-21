@@ -164,12 +164,6 @@ function IndexComponent() {
         </div>
       )}
 
-      <div className="mb-12 flex justify-center">
-        <Link to="/">
-          <h1 className="text-4xl font-bold text-foreground hover:opacity-80 transition-opacity cursor-pointer">AI Debates</h1>
-        </Link>
-      </div>
-
       <div className="flex flex-col items-center gap-4 w-full max-w-5xl">
         <form
           className="w-full flex flex-col items-center gap-4"

@@ -491,12 +491,6 @@ function DebateComponent() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
-      <div className="mb-8 flex justify-center">
-        <Link to="/">
-          <h1 className="text-4xl font-bold text-foreground hover:opacity-80 transition-opacity cursor-pointer">AI Debates</h1>
-        </Link>
-      </div>
-
       <div className="w-full max-w-5xl">
         <Card className="w-full shadow-lg">
           <CardHeader className="pb-4 border-b border-border">
