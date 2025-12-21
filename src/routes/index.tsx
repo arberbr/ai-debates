@@ -170,7 +170,7 @@ function IndexComponent() {
         </div>
       )}
 
-      <div className="flex flex-col items-center gap-4 w-full max-w-5xl">
+      <div className="flex flex-col items-center gap-4 w-full">
         <form
           className="w-full flex flex-col items-center gap-4"
           onSubmit={(e) => {

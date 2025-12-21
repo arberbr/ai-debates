@@ -596,7 +596,7 @@ function DebateComponent() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
-      <div className="w-full max-w-5xl">
+      <div className="w-full">
         <Card className="w-full shadow-lg">
           <CardHeader className="pb-4 border-b border-border">
             <div className="flex items-center justify-between">

@@ -1,17 +1,256 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from '@/components/ui/button'
+import { useState, useEffect } from 'react'
+
+const SAVED_DEBATES_KEY = 'saved_debates'
+
+const MODEL_OPTIONS = [
+  { slug: 'anthropic/claude-sonnet-4.5', name: 'Anthropic: Claude Sonnet 4.5' },
+  { slug: 'deepseek/deepseek-v3.2', name: 'DeepSeek: DeepSeek V3.2' },
+  { slug: 'google/gemini-3-pro-preview', name: 'Google: Gemini 3 Pro' },
+  { slug: 'openai/gpt-5.2', name: 'OpenAI: GPT-5.2' },
+  { slug: 'x-ai/grok-4', name: 'xAI: Grok 4' },
+  { slug: 'mistralai/mistral-medium-3.1', name: 'Mistral: Mistral Medium 3.1' },
+]
+
+interface UsageData {
+  prompt_tokens?: number
+  completion_tokens?: number
+  total_tokens?: number
+  cost?: number
+}
+
+interface SavedDebate {
+  debateId: string
+  topic: string
+  yesModel: string
+  noModel: string
+  rounds: string
+  judgeEvaluations: any[]
+  finalResult: {
+    winner?: 'yes' | 'no' | 'tie'
+    aggregateScore?: { yes: number; no: number }
+  }
+  usage?: UsageData
+  timestamp: string
+}
+
+interface ModelStats {
+  model: string
+  modelName: string
+  wins: number
+  losses: number
+  ties: number
+  totalDebates: number
+  winRate: number
+  averageScore: number
+  totalTokens: number
+  totalCost: number
+  averageCost: number
+}
+
+interface TopicStats {
+  topic: string
+  count: number
+}
 
 function LeaderboardComponent() {
   const navigate = useNavigate()
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
-      <div className="w-full max-w-5xl">
-      <Card className="w-full">
+  const [savedDebates, setSavedDebates] = useState<SavedDebate[]>([])
+  const [modelStats, setModelStats] = useState<ModelStats[]>([])
+  const [topicStats, setTopicStats] = useState<TopicStats[]>([])
+  const [sortBy, setSortBy] = useState<'winRate' | 'wins' | 'averageScore' | 'totalDebates'>('winRate')
+  const [totalStats, setTotalStats] = useState({
+    totalDebates: 0,
+    totalCost: 0,
+    totalTokens: 0,
+    averageRounds: 0,
+  })
+
+  const getModelName = (slug: string) => {
+    const model = MODEL_OPTIONS.find(m => m.slug === slug)
+    return model ? model.name : slug
+  }
+
+  const cleanTopic = (topic: string): string => {
+    return topic?.replace(/\*\*/g, '').replace(/^["']+|["']+$/g, '').trim() || 'Untitled Debate'
+  }
+
+  const loadAndProcessDebates = () => {
+    const saved = localStorage.getItem(SAVED_DEBATES_KEY)
+    if (!saved) {
+      setSavedDebates([])
+      return
+    }
+
+    try {
+      const debates: SavedDebate[] = JSON.parse(saved)
+      setSavedDebates(debates)
+
+      // Calculate model statistics
+      const modelMap = new Map<string, ModelStats>()
+
+      debates.forEach((debate) => {
+        if (!debate.finalResult || !debate.yesModel || !debate.noModel) return
+
+        const yesModel = debate.yesModel
+        const noModel = debate.noModel
+        const winner = debate.finalResult.winner
+        const aggregateScore = debate.finalResult.aggregateScore
+
+        // Process YES model
+        if (!modelMap.has(yesModel)) {
+          modelMap.set(yesModel, {
+            model: yesModel,
+            modelName: getModelName(yesModel),
+            wins: 0,
+            losses: 0,
+            ties: 0,
+            totalDebates: 0,
+            winRate: 0,
+            averageScore: 0,
+            totalTokens: 0,
+            totalCost: 0,
+            averageCost: 0,
+          })
+        }
+        const yesStats = modelMap.get(yesModel)!
+        yesStats.totalDebates++
+        if (winner === 'yes') yesStats.wins++
+        else if (winner === 'no') yesStats.losses++
+        else if (winner === 'tie') yesStats.ties++
+        if (aggregateScore?.yes) {
+          yesStats.averageScore = (yesStats.averageScore * (yesStats.totalDebates - 1) + aggregateScore.yes) / yesStats.totalDebates
+        }
+        if (debate.usage?.total_tokens) {
+          yesStats.totalTokens += debate.usage.total_tokens
+        }
+        if (debate.usage?.cost) {
+          yesStats.totalCost += debate.usage.cost
+        }
+
+        // Process NO model
+        if (!modelMap.has(noModel)) {
+          modelMap.set(noModel, {
+            model: noModel,
+            modelName: getModelName(noModel),
+            wins: 0,
+            losses: 0,
+            ties: 0,
+            totalDebates: 0,
+            winRate: 0,
+            averageScore: 0,
+            totalTokens: 0,
+            totalCost: 0,
+            averageCost: 0,
+          })
+        }
+        const noStats = modelMap.get(noModel)!
+        noStats.totalDebates++
+        if (winner === 'no') noStats.wins++
+        else if (winner === 'yes') noStats.losses++
+        else if (winner === 'tie') noStats.ties++
+        if (aggregateScore?.no) {
+          noStats.averageScore = (noStats.averageScore * (noStats.totalDebates - 1) + aggregateScore.no) / noStats.totalDebates
+        }
+        if (debate.usage?.total_tokens) {
+          noStats.totalTokens += debate.usage.total_tokens
+        }
+        if (debate.usage?.cost) {
+          noStats.totalCost += debate.usage.cost
+        }
+      })
+
+      // Calculate win rates and average costs
+      const statsArray = Array.from(modelMap.values()).map((stats) => {
+        const winRate = stats.totalDebates > 0
+          ? ((stats.wins + stats.ties * 0.5) / stats.totalDebates) * 100
+          : 0
+        const averageCost = stats.totalDebates > 0 ? stats.totalCost / stats.totalDebates : 0
+        return {
+          ...stats,
+          winRate: Math.round(winRate * 100) / 100,
+          averageScore: Math.round(stats.averageScore * 100) / 100,
+          averageCost: Math.round(averageCost * 10000) / 10000,
+        }
+      })
+
+      // Sort by selected metric
+      statsArray.sort((a, b) => {
+        switch (sortBy) {
+          case 'winRate':
+            return b.winRate - a.winRate
+          case 'wins':
+            return b.wins - a.wins
+          case 'averageScore':
+            return b.averageScore - a.averageScore
+          case 'totalDebates':
+            return b.totalDebates - a.totalDebates
+          default:
+            return 0
+        }
+      })
+
+      setModelStats(statsArray)
+
+      // Calculate topic statistics
+      const topicMap = new Map<string, number>()
+      debates.forEach((debate) => {
+        const topic = cleanTopic(debate.topic)
+        topicMap.set(topic, (topicMap.get(topic) || 0) + 1)
+      })
+
+      const topics = Array.from(topicMap.entries())
+        .map(([topic, count]) => ({ topic, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10) // Top 10 topics
+
+      setTopicStats(topics)
+
+      // Calculate total statistics
+      const totalCost = debates.reduce((sum, d) => sum + (d.usage?.cost || 0), 0)
+      const totalTokens = debates.reduce((sum, d) => sum + (d.usage?.total_tokens || 0), 0)
+      const totalRounds = debates.reduce((sum, d) => sum + (parseInt(d.rounds) || 0), 0)
+      const avgRounds = debates.length > 0 ? totalRounds / debates.length : 0
+
+      setTotalStats({
+        totalDebates: debates.length,
+        totalCost: Math.round(totalCost * 10000) / 10000,
+        totalTokens,
+        averageRounds: Math.round(avgRounds * 100) / 100,
+      })
+    } catch (e) {
+      console.error('Error loading debates:', e)
+      setSavedDebates([])
+    }
+  }
+
+  useEffect(() => {
+    loadAndProcessDebates()
+    
+    // Listen for storage changes
+    const handleStorageChange = () => {
+      loadAndProcessDebates()
+    }
+    window.addEventListener('storage', handleStorageChange)
+    const interval = setInterval(handleStorageChange, 1000)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      clearInterval(interval)
+    }
+  }, [sortBy])
+
+  if (savedDebates.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
+        <div className="w-full">
+          <Card className="w-full">
             <CardContent className="pt-6">
               <div className="text-center py-12">
-                <p className="text-lg text-muted-foreground mb-4">Leaderboard coming soon...</p>
-                <p className="text-sm text-muted-foreground mb-6">Start a new debate from the Home page to see it here.</p>
+                <p className="text-lg text-muted-foreground mb-4">No debates found</p>
+                <p className="text-sm text-muted-foreground mb-6">Start a new debate from the Home page to see leaderboards here.</p>
                 <Button
                   onClick={() => navigate({ to: '/' })}
                   className="bg-[#EE8955] hover:bg-[#FFA366] text-[#1a1a1a] font-semibold"
@@ -21,6 +260,171 @@ function LeaderboardComponent() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
+      <div className="w-full space-y-6">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-foreground mb-2">Leaderboards</h1>
+          <p className="text-muted-foreground">Statistics from {totalStats.totalDebates} debate{totalStats.totalDebates !== 1 ? 's' : ''}</p>
+        </div>
+
+        {/* Total Statistics */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Overall Statistics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 bg-muted/30 rounded-lg">
+                <div className="text-sm text-muted-foreground mb-1">Total Debates</div>
+                <div className="text-2xl font-bold">{totalStats.totalDebates}</div>
+              </div>
+              <div className="p-4 bg-muted/30 rounded-lg">
+                <div className="text-sm text-muted-foreground mb-1">Total Cost</div>
+                <div className="text-2xl font-bold">${totalStats.totalCost.toFixed(4)}</div>
+              </div>
+              <div className="p-4 bg-muted/30 rounded-lg">
+                <div className="text-sm text-muted-foreground mb-1">Total Tokens</div>
+                <div className="text-2xl font-bold">{totalStats.totalTokens.toLocaleString()}</div>
+              </div>
+              <div className="p-4 bg-muted/30 rounded-lg">
+                <div className="text-sm text-muted-foreground mb-1">Avg Rounds</div>
+                <div className="text-2xl font-bold">{totalStats.averageRounds}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Model Performance Leaderboard */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <CardTitle>Model Performance</CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  variant={sortBy === 'winRate' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSortBy('winRate')}
+                >
+                  Win Rate
+                </Button>
+                <Button
+                  variant={sortBy === 'wins' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSortBy('wins')}
+                >
+                  Wins
+                </Button>
+                <Button
+                  variant={sortBy === 'averageScore' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSortBy('averageScore')}
+                >
+                  Avg Score
+                </Button>
+                <Button
+                  variant={sortBy === 'totalDebates' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSortBy('totalDebates')}
+                >
+                  Debates
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {modelStats.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">No model statistics available</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left p-3 font-semibold">Rank</th>
+                      <th className="text-left p-3 font-semibold">Model</th>
+                      <th className="text-center p-3 font-semibold">Wins</th>
+                      <th className="text-center p-3 font-semibold">Losses</th>
+                      <th className="text-center p-3 font-semibold">Ties</th>
+                      <th className="text-center p-3 font-semibold">Win Rate</th>
+                      <th className="text-center p-3 font-semibold">Avg Score</th>
+                      <th className="text-center p-3 font-semibold">Debates</th>
+                      <th className="text-center p-3 font-semibold">Avg Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modelStats.map((stats, index) => (
+                      <tr key={stats.model} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            {index === 0 && <span className="text-yellow-500">🥇</span>}
+                            {index === 1 && <span className="text-gray-400">🥈</span>}
+                            {index === 2 && <span className="text-amber-600">🥉</span>}
+                            <span className="font-semibold">#{index + 1}</span>
+                          </div>
+                        </td>
+                        <td className="p-3 font-medium">{stats.modelName}</td>
+                        <td className="p-3 text-center text-green-600 dark:text-green-400 font-semibold">{stats.wins}</td>
+                        <td className="p-3 text-center text-red-600 dark:text-red-400 font-semibold">{stats.losses}</td>
+                        <td className="p-3 text-center text-yellow-600 dark:text-yellow-400 font-semibold">{stats.ties}</td>
+                        <td className="p-3 text-center font-semibold">{stats.winRate.toFixed(1)}%</td>
+                        <td className="p-3 text-center">{stats.averageScore > 0 ? stats.averageScore.toFixed(1) : 'N/A'}</td>
+                        <td className="p-3 text-center">{stats.totalDebates}</td>
+                        <td className="p-3 text-center text-sm">${stats.averageCost.toFixed(4)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Most Debated Topics */}
+        {topicStats.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Most Debated Topics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {topicStats.map((topic, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg font-bold text-muted-foreground w-8">#{index + 1}</span>
+                      <span className="font-medium">{topic.topic}</span>
+                    </div>
+                    <span className="text-sm text-muted-foreground font-semibold">{topic.count} debate{topic.count !== 1 ? 's' : ''}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-4 justify-center">
+          <Button
+            onClick={() => navigate({ to: '/' })}
+            className="bg-[#EE8955] hover:bg-[#FFA366] text-[#1a1a1a] font-semibold"
+          >
+            Start New Debate
+          </Button>
+          <Button
+            onClick={() => navigate({ to: '/debates' })}
+            variant="outline"
+          >
+            View All Debates
+          </Button>
+        </div>
       </div>
     </div>
   )

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 function AboutComponent() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
-      <div className="w-full max-w-5xl space-y-6">
+      <div className="w-full space-y-6">
         {/* Header */}
         <Card className="w-full">
           <CardHeader>

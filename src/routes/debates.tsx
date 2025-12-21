@@ -163,7 +163,7 @@ function DebatesComponent() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
-      <div className="w-full max-w-5xl">
+      <div className="w-full">
         {savedDebates.length === 0 ? (
           <Card className="w-full">
             <CardContent className="pt-6">
