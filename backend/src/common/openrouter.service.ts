@@ -4,9 +4,29 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 
+export interface UsageData {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  cost?: number;
+  cost_details?: {
+    upstream_inference_cost?: number;
+    upstream_inference_input_cost?: number;
+    upstream_inference_output_cost?: number;
+  };
+  completion_tokens_details?: {
+    reasoning_tokens?: number;
+  };
+  prompt_tokens_details?: {
+    cached_tokens?: number;
+    audio_tokens?: number;
+  };
+}
+
 export interface QueryResponse {
   content: string;
   reasoning_details?: any;
+  usage?: UsageData;
 }
 
 @Injectable()
@@ -48,6 +68,9 @@ export class OpenRouterService {
     const payload = {
       model,
       messages,
+      usage: {
+        include: true,
+      },
     };
 
     try {
@@ -85,11 +108,17 @@ export class OpenRouterService {
       }
 
       const message = data.choices[0].message;
+      const usage = data.usage || undefined;
+      
       this.logger.log(`Successfully received response from ${model}`);
+      if (usage) {
+        this.logger.log(`Usage: ${usage.total_tokens || 0} tokens, Cost: $${usage.cost || 0}`);
+      }
 
       return {
         content: message.content,
         reasoning_details: message.reasoning_details,
+        usage: usage,
       };
     } catch (error: any) {
       if (error.name === 'AbortError') {

@@ -10,6 +10,25 @@ const API_KEY_STORAGE_KEY = 'openrouter_api_key'
 const SAVED_DEBATES_KEY = 'saved_debates'
 const PENDING_DEBATES_KEY = 'pending_debates'
 
+interface UsageData {
+  prompt_tokens?: number
+  completion_tokens?: number
+  total_tokens?: number
+  cost?: number
+  cost_details?: {
+    upstream_inference_cost?: number
+    upstream_inference_input_cost?: number
+    upstream_inference_output_cost?: number
+  }
+  completion_tokens_details?: {
+    reasoning_tokens?: number
+  }
+  prompt_tokens_details?: {
+    cached_tokens?: number
+    audio_tokens?: number
+  }
+}
+
 interface SavedDebate {
   debateId: string
   topic: string
@@ -22,6 +41,7 @@ interface SavedDebate {
   conclusions?: Conclusions
   judgeEvaluations: JudgeEvaluation[]
   finalResult: any
+  usage?: UsageData
   timestamp: string
 }
 
@@ -113,6 +133,7 @@ function DebateComponent() {
   const [conclusions, setConclusions] = useState<Conclusions | null>(null)
   const [judgeEvaluations, setJudgeEvaluations] = useState<JudgeEvaluation[]>([])
   const [finalResult, setFinalResult] = useState<any>(null)
+  const [usage, setUsage] = useState<UsageData | undefined>(undefined)
   const [isComplete, setIsComplete] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [yesModel, setYesModel] = useState<string>('')
@@ -153,6 +174,7 @@ function DebateComponent() {
           setConclusions(savedDebate.conclusions || null)
           setJudgeEvaluations(savedDebate.judgeEvaluations || [])
           setFinalResult(savedDebate.finalResult || null)
+          setUsage(savedDebate.usage)
           setIsComplete(true)
           setStatus('Debate loaded from saved data')
           return // Don't start a new debate
@@ -483,6 +505,9 @@ function DebateComponent() {
             if (data.data.title) {
               setDisplayTopic(cleanString(data.data.title))
             }
+            if (data.data.usage) {
+              setUsage(data.data.usage)
+            }
           }
           break
         case 'status_update':
@@ -547,6 +572,7 @@ function DebateComponent() {
         conclusions: conclusions || undefined,
         judgeEvaluations,
         finalResult,
+        usage: usage,
         timestamp: new Date().toISOString(),
       }
 
@@ -564,9 +590,9 @@ function DebateComponent() {
 
       // Save back to localStorage
       localStorage.setItem(SAVED_DEBATES_KEY, JSON.stringify(debates))
-      console.log('Debate saved to localStorage:', debateId, { yesModel: determinedYesModel, noModel: determinedNoModel })
+      console.log('Debate saved to localStorage:', debateId, { yesModel: determinedYesModel, noModel: determinedNoModel, usage })
     }
-  }, [isComplete, debateId, displayTopic, debateConfig, yesModel, noModel, openingStatements, debateRounds, conclusions, judgeEvaluations, finalResult])
+  }, [isComplete, debateId, displayTopic, debateConfig, yesModel, noModel, openingStatements, debateRounds, conclusions, judgeEvaluations, finalResult, usage])
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
@@ -852,6 +878,61 @@ function DebateComponent() {
                             {finalResult.aggregateScore.no.toFixed(1)}
                           </div>
                         </div>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              )}
+
+              {/* Usage Statistics */}
+              {usage && isComplete && (
+                <Card className="p-6 bg-gradient-to-br from-muted/40 via-muted/30 to-muted/40 border-2 border-border/50 shadow-lg mt-8">
+                  <h3 className="text-2xl font-bold mb-5 text-foreground">Token Usage & Cost</h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="p-4 bg-background/50 rounded-lg border border-border">
+                        <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Total Tokens</div>
+                        <div className="text-2xl font-bold text-foreground">
+                          {usage.total_tokens?.toLocaleString() || '0'}
+                        </div>
+                      </div>
+                      <div className="p-4 bg-background/50 rounded-lg border border-border">
+                        <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Prompt Tokens</div>
+                        <div className="text-2xl font-bold text-foreground">
+                          {usage.prompt_tokens?.toLocaleString() || '0'}
+                        </div>
+                      </div>
+                      <div className="p-4 bg-background/50 rounded-lg border border-border">
+                        <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Completion Tokens</div>
+                        <div className="text-2xl font-bold text-foreground">
+                          {usage.completion_tokens?.toLocaleString() || '0'}
+                        </div>
+                      </div>
+                      <div className="p-4 bg-background/50 rounded-lg border border-border">
+                        <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Total Cost</div>
+                        <div className="text-2xl font-bold text-primary">
+                          ${usage.cost?.toFixed(4) || '0.0000'}
+                        </div>
+                      </div>
+                    </div>
+                    {(usage.completion_tokens_details?.reasoning_tokens || usage.prompt_tokens_details?.cached_tokens) && (
+                      <div className="grid grid-cols-2 gap-4 pt-2">
+                        {usage.completion_tokens_details?.reasoning_tokens && (
+                          <div className="p-3 bg-background/30 rounded-lg border border-border/50">
+                            <div className="text-xs font-semibold text-muted-foreground mb-1">Reasoning Tokens</div>
+                            <div className="text-lg font-semibold text-foreground">
+                              {usage.completion_tokens_details.reasoning_tokens.toLocaleString()}
+                            </div>
+                          </div>
+                        )}
+                        {usage.prompt_tokens_details?.cached_tokens && (
+                          <div className="p-3 bg-background/30 rounded-lg border border-border/50">
+                            <div className="text-xs font-semibold text-muted-foreground mb-1">Cached Tokens</div>
+                            <div className="text-lg font-semibold text-foreground">
+                              {usage.prompt_tokens_details.cached_tokens.toLocaleString()}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

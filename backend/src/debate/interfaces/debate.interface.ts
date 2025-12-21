@@ -33,6 +33,25 @@ export interface Conclusions {
   noConclusion: DebateMessage;
 }
 
+export interface UsageData {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  cost?: number;
+  cost_details?: {
+    upstream_inference_cost?: number;
+    upstream_inference_input_cost?: number;
+    upstream_inference_output_cost?: number;
+  };
+  completion_tokens_details?: {
+    reasoning_tokens?: number;
+  };
+  prompt_tokens_details?: {
+    cached_tokens?: number;
+    audio_tokens?: number;
+  };
+}
+
 export interface DebateResult {
   debateId: string;
   topic: string;
@@ -48,6 +67,7 @@ export interface DebateResult {
     yes: number;
     no: number;
   };
+  usage?: UsageData;
 }
 
 export type DebateStage =

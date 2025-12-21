@@ -15,6 +15,25 @@ const MODEL_OPTIONS = [
   { slug: 'mistralai/mistral-medium-3.1', name: 'Mistral: Mistral Medium 3.1' },
 ]
 
+interface UsageData {
+  prompt_tokens?: number
+  completion_tokens?: number
+  total_tokens?: number
+  cost?: number
+  cost_details?: {
+    upstream_inference_cost?: number
+    upstream_inference_input_cost?: number
+    upstream_inference_output_cost?: number
+  }
+  completion_tokens_details?: {
+    reasoning_tokens?: number
+  }
+  prompt_tokens_details?: {
+    cached_tokens?: number
+    audio_tokens?: number
+  }
+}
+
 interface SavedDebate {
   debateId: string
   topic: string
@@ -25,6 +44,7 @@ interface SavedDebate {
   debateRounds: any[]
   judgeEvaluations: any[]
   finalResult: any
+  usage?: UsageData
   timestamp: string
 }
 
@@ -244,6 +264,23 @@ function DebatesComponent() {
                         <div className="text-sm">
                           <div className="font-semibold">
                             Winner: {debate.finalResult.winner.toUpperCase()}
+                          </div>
+                        </div>
+                      )}
+                      {debate.usage && (
+                        <div className="text-sm pt-2 border-t border-current/20 dark:border-current/30">
+                          <div className="font-semibold mb-1">Usage:</div>
+                          <div className="text-xs space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span>Tokens:</span>
+                              <span className="opacity-70">{debate.usage.total_tokens?.toLocaleString() || '0'}</span>
+                            </div>
+                            {debate.usage.cost !== undefined && (
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Cost:</span>
+                                <span className="opacity-70 font-semibold">${debate.usage.cost.toFixed(4)}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}

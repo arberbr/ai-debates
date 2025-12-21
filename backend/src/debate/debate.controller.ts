@@ -14,6 +14,7 @@ import { Response } from 'express';
 import { DebateService } from './debate.service';
 import { DebateStatusService } from './debate-status.service';
 import { StartDebateDto } from './dto/start-debate.dto';
+import { UsageData } from './interfaces/debate.interface';
 
 @Controller('api/debate')
 export class DebateController {
@@ -154,6 +155,28 @@ export class DebateController {
     // Keep original topic for debate participants (they use the original text)
     const originalTopic = topic;
 
+    // Initialize usage accumulator to track total token usage and costs
+    const usageAccumulator: { usage: UsageData } = {
+      usage: {
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0,
+        cost: 0,
+        cost_details: {
+          upstream_inference_cost: 0,
+          upstream_inference_input_cost: 0,
+          upstream_inference_output_cost: 0,
+        },
+        completion_tokens_details: {
+          reasoning_tokens: 0,
+        },
+        prompt_tokens_details: {
+          cached_tokens: 0,
+          audio_tokens: 0,
+        },
+      },
+    };
+
     try {
       // Stage 1: Generate title (first step)
       this.sendSSEEvent(res, {
@@ -178,6 +201,7 @@ export class DebateController {
               timestamp: new Date().toISOString(),
             });
           },
+          usageAccumulator,
         );
 
         this.sendSSEEvent(res, {
@@ -227,6 +251,7 @@ export class DebateController {
               timestamp: new Date().toISOString(),
             });
           },
+          usageAccumulator,
         );
 
         this.sendSSEEvent(res, {
@@ -289,6 +314,7 @@ export class DebateController {
                 timestamp: new Date().toISOString(),
               });
             },
+            usageAccumulator,
           );
 
           rebuttalRounds.push(rebuttalRound);
@@ -351,6 +377,7 @@ export class DebateController {
               timestamp: new Date().toISOString(),
             });
           },
+          usageAccumulator,
         );
 
         this.sendSSEEvent(res, {
@@ -422,6 +449,7 @@ export class DebateController {
                 timestamp: new Date().toISOString(),
               });
             },
+            usageAccumulator,
           );
 
           judgeEvaluations.push(evaluation);
@@ -482,6 +510,7 @@ export class DebateController {
           conclusions,
           judgeEvaluations,
           finalResult,
+          usage: usageAccumulator.usage,
         },
         message: 'Debate process complete',
         debateId,

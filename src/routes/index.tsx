@@ -315,22 +315,32 @@ function IndexComponent() {
             <CardContent>
               <form.Field
                 name="rounds"
-                children={(field) => (
-                  <div className="flex flex-col gap-2">
-                    <Input
-                      id="rounds"
-                      type="number"
-                      min="1"
-                      max="5"
-                      step="1"
-                      value={field.state.value}
-                      onChange={(e) => field.handleChange(Number(e.target.value))}
-                      onBlur={field.handleBlur}
-                      placeholder="e.g., 3"
-                      className="w-full"
-                    />
-                  </div>
-                )}
+                children={(field) => {
+                  const roundsValue = field.state.value || 3
+                  const isOverRecommended = roundsValue > 3
+                  
+                  return (
+                    <div className="flex flex-col gap-2">
+                      <Input
+                        id="rounds"
+                        type="number"
+                        min="1"
+                        max="5"
+                        step="1"
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(Number(e.target.value))}
+                        onBlur={field.handleBlur}
+                        placeholder="e.g., 3"
+                        className="w-full"
+                      />
+                      {isOverRecommended && (
+                        <p className="text-sm text-amber-600 font-semibold">
+                          ⚠️ Warning: More than 3 rounds may significantly increase token usage and costs.
+                        </p>
+                      )}
+                    </div>
+                  )
+                }}
               />
             </CardContent>
           </Card>

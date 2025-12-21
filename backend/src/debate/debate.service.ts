@@ -11,8 +11,10 @@ import {
   JudgeEvaluation,
   OpeningStatements,
   Conclusions,
+  UsageData,
 } from './interfaces/debate.interface';
 import { cleanString } from 'src/common/utils';
+import { UsageData as OpenRouterUsageData } from '../common/openrouter.service';
 
 @Injectable()
 export class DebateService {
@@ -21,12 +23,80 @@ export class DebateService {
   constructor(private readonly openRouterService: OpenRouterService) {}
 
   /**
+   * Accumulate usage data from multiple API calls.
+   */
+  private accumulateUsage(
+    current: UsageData | undefined,
+    newUsage: OpenRouterUsageData | undefined,
+  ): UsageData {
+    if (!newUsage) {
+      return current || {
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0,
+        cost: 0,
+      };
+    }
+
+    const existing = current || {
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      total_tokens: 0,
+      cost: 0,
+      cost_details: {
+        upstream_inference_cost: 0,
+        upstream_inference_input_cost: 0,
+        upstream_inference_output_cost: 0,
+      },
+      completion_tokens_details: {
+        reasoning_tokens: 0,
+      },
+      prompt_tokens_details: {
+        cached_tokens: 0,
+        audio_tokens: 0,
+      },
+    };
+
+    return {
+      prompt_tokens: (existing.prompt_tokens || 0) + (newUsage.prompt_tokens || 0),
+      completion_tokens: (existing.completion_tokens || 0) + (newUsage.completion_tokens || 0),
+      total_tokens: (existing.total_tokens || 0) + (newUsage.total_tokens || 0),
+      cost: (existing.cost || 0) + (newUsage.cost || 0),
+      cost_details: {
+        upstream_inference_cost:
+          (existing.cost_details?.upstream_inference_cost || 0) +
+          (newUsage.cost_details?.upstream_inference_cost || 0),
+        upstream_inference_input_cost:
+          (existing.cost_details?.upstream_inference_input_cost || 0) +
+          (newUsage.cost_details?.upstream_inference_input_cost || 0),
+        upstream_inference_output_cost:
+          (existing.cost_details?.upstream_inference_output_cost || 0) +
+          (newUsage.cost_details?.upstream_inference_output_cost || 0),
+      },
+      completion_tokens_details: {
+        reasoning_tokens:
+          (existing.completion_tokens_details?.reasoning_tokens || 0) +
+          (newUsage.completion_tokens_details?.reasoning_tokens || 0),
+      },
+      prompt_tokens_details: {
+        cached_tokens:
+          (existing.prompt_tokens_details?.cached_tokens || 0) +
+          (newUsage.prompt_tokens_details?.cached_tokens || 0),
+        audio_tokens:
+          (existing.prompt_tokens_details?.audio_tokens || 0) +
+          (newUsage.prompt_tokens_details?.audio_tokens || 0),
+      },
+    };
+  }
+
+  /**
    * Generate a title for the debate topic..
    */
   async generateTitle(
     topic: string,
     apiKey: string | null,
     onStatusUpdate?: (status: string) => void,
+    usageAccumulator?: { usage: UsageData },
   ): Promise<string> {
     this.logger.log('Generating title...');
     
@@ -58,6 +128,11 @@ export class DebateService {
       apiKey,
     );
 
+    // Accumulate usage if accumulator provided
+    if (usageAccumulator && response?.usage) {
+      usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
+    }
+
     if (!response || !response.content) {
       this.logger.warn('Title generation failed, using fallback');
       // Generate a fallback title from the first part of the topic
@@ -86,6 +161,7 @@ export class DebateService {
     noModel: string,
     apiKey: string | null,
     onStatusUpdate?: (status: string) => void,
+    usageAccumulator?: { usage: UsageData },
   ): Promise<OpeningStatements> {
     this.logger.log('Generating opening statements...');
 
@@ -134,6 +210,9 @@ Provide your complete opening statement now. Be thorough, persuasive, and make s
         180000, // Longer timeout for longer responses
         apiKey,
       ).then((response) => {
+        if (usageAccumulator && response?.usage) {
+          usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
+        }
         if (onStatusUpdate) {
           onStatusUpdate(`${yesModel} opening statement complete`);
         }
@@ -145,6 +224,9 @@ Provide your complete opening statement now. Be thorough, persuasive, and make s
         180000, // Longer timeout for longer responses
         apiKey,
       ).then((response) => {
+        if (usageAccumulator && response?.usage) {
+          usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
+        }
         if (onStatusUpdate) {
           onStatusUpdate(`${noModel} opening statement complete`);
         }
@@ -196,6 +278,7 @@ Provide your complete opening statement now. Be thorough, persuasive, and make s
     previousRounds: DebateRound[],
     apiKey: string | null,
     onStatusUpdate?: (status: string) => void,
+    usageAccumulator?: { usage: UsageData },
   ): Promise<DebateRound> {
     this.logger.log(`Conducting rebuttal round ${round}...`);
 
@@ -295,6 +378,9 @@ ${previousRound.yesMessage.content}`,
         apiKey,
       )
         .then((response) => {
+          if (usageAccumulator && response?.usage) {
+            usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
+          }
           if (onStatusUpdate) {
             onStatusUpdate(`${yesModel} rebuttal received for round ${round}`);
           }
@@ -314,6 +400,9 @@ ${previousRound.yesMessage.content}`,
         apiKey,
       )
         .then((response) => {
+          if (usageAccumulator && response?.usage) {
+            usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
+          }
           if (onStatusUpdate) {
             onStatusUpdate(`${noModel} rebuttal received for round ${round}`);
           }
@@ -371,6 +460,7 @@ ${previousRound.yesMessage.content}`,
     rebuttalRounds: DebateRound[],
     apiKey: string | null,
     onStatusUpdate?: (status: string) => void,
+    usageAccumulator?: { usage: UsageData },
   ): Promise<Conclusions> {
     this.logger.log('Generating conclusions...');
 
@@ -441,6 +531,9 @@ Provide your complete concluding statement now.`;
         180000, // Longer timeout for conclusions
         apiKey,
       ).then((response) => {
+        if (usageAccumulator && response?.usage) {
+          usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
+        }
         if (onStatusUpdate) {
           onStatusUpdate(`${yesModel} conclusion complete`);
         }
@@ -452,6 +545,9 @@ Provide your complete concluding statement now.`;
         180000, // Longer timeout for conclusions
         apiKey,
       ).then((response) => {
+        if (usageAccumulator && response?.usage) {
+          usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
+        }
         if (onStatusUpdate) {
           onStatusUpdate(`${noModel} conclusion complete`);
         }
@@ -501,6 +597,7 @@ Provide your complete concluding statement now.`;
     judgePrompt: string,
     apiKey: string | null,
     onStatusUpdate?: (status: string) => void,
+    usageAccumulator?: { usage: UsageData },
   ): Promise<JudgeEvaluation> {
     const startTime = Date.now();
     this.logger.log(`[Judge ${judgeModel}] Starting evaluation for debate with ${rebuttalRounds.length} rebuttal rounds`);
@@ -591,6 +688,9 @@ REASONING:
       120000,
       apiKey,
     ).then((response) => {
+      if (usageAccumulator && response?.usage) {
+        usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
+      }
       if (onStatusUpdate) {
         onStatusUpdate(`${judgeModel} evaluation response received, parsing...`);
       }
