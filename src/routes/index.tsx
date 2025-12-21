@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useForm } from "@tanstack/react-form"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -92,6 +92,12 @@ function IndexComponent() {
         if (!yesModel) missingFields.push('yes model')
         if (!noModel) missingFields.push('no model')
         alert(`Please fill in all required fields: ${missingFields.join(', ')}`)
+        return
+      }
+
+      // Validate topic length (max 300 characters)
+      if (topic.length > 300) {
+        alert('Topic must be 300 characters or less. Please shorten your topic.')
         return
       }
 
@@ -208,16 +214,35 @@ function IndexComponent() {
             <CardContent>
               <form.Field
                 name="topic"
-                children={(field) => (
-                  <Textarea 
-                    className="w-full"
-                    placeholder="Enter the debate topic or a whole article which you want to debate about"
-                    rows={4}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                  />
-                )}
+                children={(field) => {
+                  const topicValue = field.state.value || ''
+                  const charCount = topicValue.length
+                  const maxChars = 300
+                  const isOverLimit = charCount > maxChars
+                  
+                  return (
+                    <div className="flex flex-col gap-2">
+                      <Textarea 
+                        className={`w-full ${isOverLimit ? 'border-red-500' : ''}`}
+                        placeholder="Enter the debate topic (max 300 characters)"
+                        rows={4}
+                        value={field.state.value}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          // Allow typing but validation happens on submit
+                          field.handleChange(value)
+                        }}
+                        onBlur={field.handleBlur}
+                      />
+                      <div className={`text-sm ${isOverLimit ? 'text-red-500' : 'text-muted-foreground'}`}>
+                        {charCount} / {maxChars} characters
+                        {isOverLimit && (
+                          <span className="ml-2 font-semibold">Topic is too long. Please shorten it to 300 characters or less.</span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                }}
               />
             </CardContent>
           </Card>

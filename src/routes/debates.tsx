@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect } from 'react'
+import { formatDate24Hour, calculateTotalReadingTimeForSide } from '@/lib/utils'
 
 const SAVED_DEBATES_KEY = 'saved_debates'
 
@@ -169,8 +170,9 @@ function DebatesComponent() {
             <div className="grid grid-cols-1 gap-4">
               {savedDebates.map((debate, index) => {
                 const colorScheme = cardColors[index % cardColors.length]
-                const date = new Date(debate.timestamp)
-                const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+                const formattedDate = formatDate24Hour(debate.timestamp)
+                const yesReadingTime = calculateTotalReadingTimeForSide(debate, 'yes')
+                const noReadingTime = calculateTotalReadingTimeForSide(debate, 'no')
                 
                 const handleCardClick = () => {
                   navigate({
@@ -225,8 +227,14 @@ function DebatesComponent() {
                       <div className="text-sm">
                         <div className="font-semibold mb-1">Models:</div>
                         <div className="text-xs space-y-1">
-                          <div>FOR: {getModelName(debate.yesModel)}</div>
-                          <div>AGAINST: {getModelName(debate.noModel)}</div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span>FOR: {getModelName(debate.yesModel)}</span>
+                            <span className="opacity-70">{yesReadingTime}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span>AGAINST: {getModelName(debate.noModel)}</span>
+                            <span className="opacity-70">{noReadingTime}</span>
+                          </div>
                         </div>
                       </div>
                       <div className="text-sm">

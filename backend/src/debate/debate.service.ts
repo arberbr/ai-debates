@@ -9,8 +9,10 @@ import {
   DebateMessage,
   DebateRound,
   JudgeEvaluation,
-  DebateResult,
+  OpeningStatements,
+  Conclusions,
 } from './interfaces/debate.interface';
+import { cleanString } from 'src/common/utils';
 
 @Injectable()
 export class DebateService {
@@ -19,31 +21,31 @@ export class DebateService {
   constructor(private readonly openRouterService: OpenRouterService) {}
 
   /**
-   * Generate a concise title for the debate topic/article.
+   * Generate a title for the debate topic..
    */
   async generateTitle(
     topic: string,
     apiKey: string | null,
     onStatusUpdate?: (status: string) => void,
   ): Promise<string> {
-    this.logger.log('Generating concise title...');
-
+    this.logger.log('Generating title...');
+    
     // Use a small, fast model for title generation
     const smallModel = 'mistralai/ministral-14b-2512';
 
-    const titlePrompt = `Analyze the following topic or article and generate a concise, descriptive title (maximum 10-12 words).
+    const titlePrompt = `
+      Rewrite the following topic as a concise, descriptive title (maximum 10-12 words). Keep the core meaning but make it clear and engaging.
+      Original topic:
+      ${topic}
+          
+      Your task:
+      1. The title needs to be without quotes or extra formatting.
+      2. Understand the core subject matter and main proposition.
+      3. Rewrite it as a short, clear title that captures the essence (aim for 7-12 words maximum).
+      4. The title should be a question or statement that clearly indicates what is being debated.
 
-Original topic/article:
-${topic}
-
-Your task:
-1. The topic needs to be without quotes or extra formatting.
-2. Understand the core subject matter and main proposition.
-3. Extract the key question or debate point.
-4. Create a short, clear title that captures the essence (aim for 7-12 words maximum).
-5. The title should be a question or statement that clearly indicates what is being debated.
-
-Provide ONLY the title, nothing else. No explanations, no additional text.`;
+      Provide ONLY the rewritten title, nothing else. No explanations, no additional text.
+    `;
 
     if (onStatusUpdate) {
       onStatusUpdate(`Generating title with ${smallModel}...`);
@@ -52,7 +54,7 @@ Provide ONLY the title, nothing else. No explanations, no additional text.`;
     const response = await this.openRouterService.queryModel(
       smallModel,
       [{ role: 'user', content: titlePrompt }],
-      30000, // Shorter timeout for small model
+      10000, // Shorter timeout for small model
       apiKey,
     );
 
@@ -63,259 +65,238 @@ Provide ONLY the title, nothing else. No explanations, no additional text.`;
       return fallback.endsWith('...') ? fallback : fallback + '...';
     }
 
-    let title = response.content.trim();
+    let title = cleanString(response.content);
     
-    // Clean up markdown formatting and quotes - be aggressive
-    // First, remove markdown bold markers (**) - handle patterns like **"text"** or **text**
-    title = title.replace(/\*\*/g, '');
-    // Remove any remaining single asterisks (*) - but be careful not to remove legitimate asterisks in text
-    // Only remove if they're at the start/end or clearly markdown formatting
-    title = title.replace(/^\*+|\*+$/g, '');
-    // Remove markdown italic markers (_) at start/end
-    title = title.replace(/^_+|_+$/g, '');
-    // Remove leading/trailing quotes (single or double) - handle multiple quotes and combinations
-    title = title.replace(/^["'`]+|["'`]+$/g, '');
-    // Remove any leading/trailing whitespace, colons, dashes that might be leftover formatting
-    title = title.replace(/^[\s:-]+|[\s:-]+$/g, '');
-    // Final trim
-    const cleanTitle = title.trim();
-    
-    this.logger.log(`Title generated: ${cleanTitle}`);
+    this.logger.log(`Title generated: ${title}`);
 
     if (onStatusUpdate) {
       onStatusUpdate('Title generation complete');
     }
 
-    return cleanTitle;
+    return title;
   }
 
   /**
-   * Rewrite the topic in a concise, short way using a small model.
+   * Generate opening statements for both debate participants.
+   * Each statement should be 5-10 minutes when read (approximately 1000-2000 words, assuming 200 words per minute).
    */
-  async rewriteTopic(
-    topic: string,
-    apiKey: string | null,
-    onStatusUpdate?: (status: string) => void,
-  ): Promise<string> {
-    this.logger.log('Rewriting topic to concise format...');
-
-    // Use a small, fast model for topic rewriting
-    const smallModel = 'google/gemini-flash-2.5';
-
-    const rewritePrompt = `Analyze the following topic or article and rewrite it in a concise, short way (maximum 2-3 sentences or a brief title).
-
-Original topic/article:
-${topic}
-
-Your task:
-1. Understand the core subject matter
-2. Extract the main proposition or question
-3. Rewrite it in a clear, concise format (aim for 2-3 sentences maximum, or a brief title if appropriate)
-4. Keep the essential meaning and context
-
-Provide only the rewritten concise version, nothing else.`;
-
-    if (onStatusUpdate) {
-      onStatusUpdate(`Rewriting topic with ${smallModel}...`);
-    }
-
-    const response = await this.openRouterService.queryModel(
-      smallModel,
-      [{ role: 'user', content: rewritePrompt }],
-      30000, // Shorter timeout for small model
-      apiKey,
-    );
-
-    if (!response || !response.content) {
-      this.logger.warn('Topic rewrite failed, using original topic');
-      return topic; // Fallback to original topic
-    }
-
-    const rewrittenTopic = response.content.trim();
-    this.logger.log(`Topic rewritten: ${rewrittenTopic.substring(0, 100)}...`);
-
-    if (onStatusUpdate) {
-      onStatusUpdate('Topic rewrite complete');
-    }
-
-    return rewrittenTopic;
-  }
-
-  /**
-   * Analyze the topic/article with both debate participants to prepare their initial positions.
-   */
-  async analyzeTopic(
+  async generateOpeningStatements(
     topic: string,
     yesModel: string,
     noModel: string,
     apiKey: string | null,
     onStatusUpdate?: (status: string) => void,
-  ): Promise<{ yesAnalysis: string; noAnalysis: string }> {
-    this.logger.log('Starting topic analysis...');
+  ): Promise<OpeningStatements> {
+    this.logger.log('Generating opening statements...');
 
-    const yesAnalysisPrompt = `You are about to participate in a structured debate. Analyze the following topic or article and prepare your initial position.
+    const yesOpeningPrompt = `You are participating in a structured debate. You are arguing FOR the proposition.
 
-Topic/Article:
+Debate Topic:
 ${topic}
 
-Your task:
-1. Carefully read and understand the topic/article
-2. Identify key points, arguments, and evidence
-3. Prepare your initial position (you will be arguing FOR the proposition)
-4. Think about potential counterarguments you might face
-5. Prepare strong supporting evidence and reasoning
+Your task is to prepare and deliver your opening statement. This is your opportunity to present your case clearly and persuasively.
 
-Provide a comprehensive analysis that will serve as your foundation for the debate. Be thorough and thoughtful.`;
+Requirements:
+1. Your opening statement should be approximately 5-10 minutes long when read aloud (target 1000-2000 words, assuming 200 words per minute reading speed)
+2. Clearly state your position and main arguments
+3. Present supporting evidence and reasoning
+4. Anticipate potential counterarguments
+5. Make your case compelling and well-structured
 
-    const noAnalysisPrompt = `You are about to participate in a structured debate. Analyze the following topic or article and prepare your initial position.
+Provide your complete opening statement now. Be thorough, persuasive, and make sure your argument is well-supported.`;
 
-Topic/Article:
+    const noOpeningPrompt = `You are participating in a structured debate. You are arguing AGAINST the proposition.
+
+Debate Topic:
 ${topic}
 
-Your task:
-1. Carefully read and understand the topic/article
-2. Identify key points, arguments, and evidence
-3. Prepare your initial position (you will be arguing AGAINST the proposition)
-4. Think about potential counterarguments you might face
-5. Prepare strong supporting evidence and reasoning
+Your task is to prepare and deliver your opening statement. This is your opportunity to present your case clearly and persuasively.
 
-Provide a comprehensive analysis that will serve as your foundation for the debate. Be thorough and thoughtful.`;
+Requirements:
+1. Your opening statement should be approximately 5-10 minutes long when read aloud (target 1000-2000 words, assuming 200 words per minute reading speed)
+2. Clearly state your position and main arguments
+3. Present supporting evidence and reasoning
+4. Anticipate potential counterarguments
+5. Make your case compelling and well-structured
 
-    // Analyze with both models in parallel
+Provide your complete opening statement now. Be thorough, persuasive, and make sure your argument is well-supported.`;
+
+    // Generate opening statements in parallel
     if (onStatusUpdate) {
-      onStatusUpdate(`Querying ${yesModel} for topic analysis (FOR side)...`);
-      onStatusUpdate(`Querying ${noModel} for topic analysis (AGAINST side)...`);
+      onStatusUpdate(`Querying ${yesModel} for opening statement (FOR side)...`);
+      onStatusUpdate(`Querying ${noModel} for opening statement (AGAINST side)...`);
     }
 
     const [yesResponse, noResponse] = await Promise.all([
       this.openRouterService.queryModel(
         yesModel,
-        [{ role: 'user', content: yesAnalysisPrompt }],
-        120000,
+        [{ role: 'user', content: yesOpeningPrompt }],
+        180000, // Longer timeout for longer responses
         apiKey,
       ).then((response) => {
         if (onStatusUpdate) {
-          onStatusUpdate(`${yesModel} analysis complete`);
+          onStatusUpdate(`${yesModel} opening statement complete`);
         }
         return response;
       }),
       this.openRouterService.queryModel(
         noModel,
-        [{ role: 'user', content: noAnalysisPrompt }],
-        120000,
+        [{ role: 'user', content: noOpeningPrompt }],
+        180000, // Longer timeout for longer responses
         apiKey,
       ).then((response) => {
         if (onStatusUpdate) {
-          onStatusUpdate(`${noModel} analysis complete`);
+          onStatusUpdate(`${noModel} opening statement complete`);
         }
         return response;
       }),
     ]);
 
+    if (!yesResponse || !yesResponse.content) {
+      throw new Error(`Failed to generate opening statement from ${yesModel}`);
+    }
+
+    if (!noResponse || !noResponse.content) {
+      throw new Error(`Failed to generate opening statement from ${noModel}`);
+    }
+
+    const yesStatement: DebateMessage = {
+      role: 'yes',
+      model: yesModel,
+      content: yesResponse.content,
+      round: 0, // Use 0 to indicate opening statement
+      timestamp: new Date().toISOString(),
+    };
+
+    const noStatement: DebateMessage = {
+      role: 'no',
+      model: noModel,
+      content: noResponse.content,
+      round: 0, // Use 0 to indicate opening statement
+      timestamp: new Date().toISOString(),
+    };
+
     return {
-      yesAnalysis: yesResponse?.content || 'Analysis failed',
-      noAnalysis: noResponse?.content || 'Analysis failed',
+      yesStatement,
+      noStatement,
     };
   }
 
   /**
-   * Conduct a single debate round between the two participants.
+   * Conduct a single rebuttal round between the two participants.
+   * Round 1: Each side analyzes and rebuts the opponent's opening statement.
+   * Subsequent rounds: Each side focuses on the opponent's arguments from the previous rebuttal round.
    */
-  async conductDebateRound(
+  async conductRebuttalRound(
     topic: string,
     yesModel: string,
     noModel: string,
     round: number,
+    openingStatements: OpeningStatements,
     previousRounds: DebateRound[],
-    yesAnalysis: string,
-    noAnalysis: string,
     apiKey: string | null,
     onStatusUpdate?: (status: string) => void,
   ): Promise<DebateRound> {
-    this.logger.log(`Conducting debate round ${round}...`);
+    this.logger.log(`Conducting rebuttal round ${round}...`);
 
-    // Add initial analysis context for YES side
-    const yesConversationHistory: Array<{ role: string; content: string }> = [
+    // Build context for YES side
+    const yesContext: Array<{ role: string; content: string }> = [
       {
         role: 'system',
         content: `You are participating in a structured debate on the following topic:
 
 ${topic}
 
-Your initial analysis:
-${yesAnalysis}
+You are arguing FOR the proposition.
 
-You are arguing FOR the proposition.`,
+Your opening statement:
+${openingStatements.yesStatement.content}`,
       },
     ];
 
-    const noConversationHistory: Array<{ role: string; content: string }> = [
+    // Build context for NO side
+    const noContext: Array<{ role: string; content: string }> = [
       {
         role: 'system',
         content: `You are participating in a structured debate on the following topic:
 
 ${topic}
 
-Your initial analysis:
-${noAnalysis}
+You are arguing AGAINST the proposition.
 
-You are arguing AGAINST the proposition.`,
+Your opening statement:
+${openingStatements.noStatement.content}`,
       },
     ];
 
-    // Add previous rounds to context for YES side
-    for (const prevRound of previousRounds) {
-      yesConversationHistory.push({
+    // For round 1, provide opponent's opening statement
+    // For subsequent rounds, provide previous round's arguments
+    if (round === 1) {
+      // First rebuttal: analyze and attack opponent's opening statement
+      yesContext.push({
         role: 'user',
-        content: `Round ${prevRound.round} - Opponent's argument:\n${prevRound.noMessage.content}`,
+        content: `Your opponent's opening statement (AGAINST side):
+${openingStatements.noStatement.content}`,
       });
-      yesConversationHistory.push({
-        role: 'assistant',
-        content: `Round ${prevRound.round} - My argument:\n${prevRound.yesMessage.content}`,
+
+      noContext.push({
+        role: 'user',
+        content: `Your opponent's opening statement (FOR side):
+${openingStatements.yesStatement.content}`,
       });
+    } else {
+      // Subsequent rounds: focus on previous round's arguments
+      const previousRound = previousRounds[previousRounds.length - 1];
+      yesContext.push({
+        role: 'user',
+        content: `Your opponent's argument from Rebuttal Round ${previousRound.round} (AGAINST side):
+${previousRound.noMessage.content}`,
+      });
+
+      noContext.push({
+        role: 'user',
+        content: `Your opponent's argument from Rebuttal Round ${previousRound.round} (FOR side):
+${previousRound.yesMessage.content}`,
+      });
+
+      // Add all previous rebuttal rounds for context
+      for (const prevRound of previousRounds) {
+        yesContext.push({
+          role: 'assistant',
+          content: `Your rebuttal from Round ${prevRound.round}:\n${prevRound.yesMessage.content}`,
+        });
+        noContext.push({
+          role: 'assistant',
+          content: `Your rebuttal from Round ${prevRound.round}:\n${prevRound.noMessage.content}`,
+        });
+      }
     }
 
-    // Add previous rounds to context for NO side
-    for (const prevRound of previousRounds) {
-      noConversationHistory.push({
-        role: 'user',
-        content: `Round ${prevRound.round} - Opponent's argument:\n${prevRound.yesMessage.content}`,
-      });
-      noConversationHistory.push({
-        role: 'assistant',
-        content: `Round ${prevRound.round} - My argument:\n${prevRound.noMessage.content}`,
-      });
-    }
+    // Create prompts for this rebuttal round
+    const yesPrompt = round === 1
+      ? `This is Rebuttal Round ${round}. Analyze your opponent's opening statement carefully. Dissect their arguments, identify weaknesses, logical fallacies, or unsupported claims. Present strong counterarguments and defend your position. Be thorough and persuasive.`
+      : `This is Rebuttal Round ${round}. Focus on your opponent's arguments from the previous round. Address their specific points, counter their rebuttals, and strengthen your position. Be direct, logical, and persuasive.`;
 
-    // Create prompts for this round
-    const yesPrompt = `This is Round ${round} of the debate. 
-
-${previousRounds.length > 0 ? 'Based on the previous rounds, respond to your opponent\'s arguments and strengthen your position.' : 'Present your opening argument. Make it strong, well-reasoned, and supported by evidence.'}
-
-Be persuasive, logical, and address any counterarguments. Keep your response focused and impactful.`;
-
-    const noPrompt = `This is Round ${round} of the debate.
-
-${previousRounds.length > 0 ? 'Based on the previous rounds, respond to your opponent\'s arguments and strengthen your position.' : 'Present your opening argument. Make it strong, well-reasoned, and supported by evidence.'}
-
-Be persuasive, logical, and address any counterarguments. Keep your response focused and impactful.`;
+    const noPrompt = round === 1
+      ? `This is Rebuttal Round ${round}. Analyze your opponent's opening statement carefully. Dissect their arguments, identify weaknesses, logical fallacies, or unsupported claims. Present strong counterarguments and defend your position. Be thorough and persuasive.`
+      : `This is Rebuttal Round ${round}. Focus on your opponent's arguments from the previous round. Address their specific points, counter their rebuttals, and strengthen your position. Be direct, logical, and persuasive.`;
 
     // Get responses in parallel
     if (onStatusUpdate) {
-      onStatusUpdate(`Waiting for ${yesModel} response (FOR side, round ${round})...`);
-      onStatusUpdate(`Waiting for ${noModel} response (AGAINST side, round ${round})...`);
+      onStatusUpdate(`Waiting for ${yesModel} rebuttal (FOR side, round ${round})...`);
+      onStatusUpdate(`Waiting for ${noModel} rebuttal (AGAINST side, round ${round})...`);
     }
 
     const [yesResponse, noResponse] = await Promise.all([
       this.openRouterService.queryModel(
         yesModel,
-        [...yesConversationHistory, { role: 'user', content: yesPrompt }],
-        120000,
+        [...yesContext, { role: 'user', content: yesPrompt }],
+        180000, // Longer timeout for detailed rebuttals
         apiKey,
       )
         .then((response) => {
           if (onStatusUpdate) {
-            onStatusUpdate(`${yesModel} response received for round ${round}`);
+            onStatusUpdate(`${yesModel} rebuttal received for round ${round}`);
           }
           return response;
         })
@@ -328,13 +309,13 @@ Be persuasive, logical, and address any counterarguments. Keep your response foc
         }),
       this.openRouterService.queryModel(
         noModel,
-        [...noConversationHistory, { role: 'user', content: noPrompt }],
-        120000,
+        [...noContext, { role: 'user', content: noPrompt }],
+        180000, // Longer timeout for detailed rebuttals
         apiKey,
       )
         .then((response) => {
           if (onStatusUpdate) {
-            onStatusUpdate(`${noModel} response received for round ${round}`);
+            onStatusUpdate(`${noModel} rebuttal received for round ${round}`);
           }
           return response;
         })
@@ -348,11 +329,11 @@ Be persuasive, logical, and address any counterarguments. Keep your response foc
     ]);
 
     if (!yesResponse || !yesResponse.content) {
-      throw new Error(`Failed to generate response from ${yesModel}. The model may have insufficient credits or encountered an error.`);
+      throw new Error(`Failed to generate rebuttal from ${yesModel}. The model may have insufficient credits or encountered an error.`);
     }
 
     if (!noResponse || !noResponse.content) {
-      throw new Error(`Failed to generate response from ${noModel}. The model may have insufficient credits or encountered an error.`);
+      throw new Error(`Failed to generate rebuttal from ${noModel}. The model may have insufficient credits or encountered an error.`);
     }
 
     const yesMessage: DebateMessage = {
@@ -379,53 +360,217 @@ Be persuasive, logical, and address any counterarguments. Keep your response foc
   }
 
   /**
+   * Generate conclusions for both debate participants.
+   * Each conclusion should be 2-5 minutes when read (approximately 400-1000 words, assuming 200 words per minute).
+   */
+  async generateConclusions(
+    topic: string,
+    yesModel: string,
+    noModel: string,
+    openingStatements: OpeningStatements,
+    rebuttalRounds: DebateRound[],
+    apiKey: string | null,
+    onStatusUpdate?: (status: string) => void,
+  ): Promise<Conclusions> {
+    this.logger.log('Generating conclusions...');
+
+    // Build full debate context for both sides
+    let yesDebateHistory = `Your opening statement:\n${openingStatements.yesStatement.content}\n\n`;
+    let noDebateHistory = `Your opening statement:\n${openingStatements.noStatement.content}\n\n`;
+
+    for (const round of rebuttalRounds) {
+      yesDebateHistory += `Rebuttal Round ${round.round} - Your opponent's argument:\n${round.noMessage.content}\n\n`;
+      yesDebateHistory += `Rebuttal Round ${round.round} - Your rebuttal:\n${round.yesMessage.content}\n\n`;
+      
+      noDebateHistory += `Rebuttal Round ${round.round} - Your opponent's argument:\n${round.yesMessage.content}\n\n`;
+      noDebateHistory += `Rebuttal Round ${round.round} - Your rebuttal:\n${round.noMessage.content}\n\n`;
+    }
+
+    const yesConclusionPrompt = `You are concluding a structured debate. You argued FOR the proposition.
+
+Debate Topic:
+${topic}
+
+Complete Debate History:
+${yesDebateHistory}
+
+Your task is to deliver your concluding statement. This is your final opportunity to:
+1. Summarize your main arguments and why they still hold
+2. Address how you responded to your opponent's challenges
+3. Reinforce why your position is correct
+4. You may acknowledge any weaknesses if appropriate, or concede if you believe your position has been successfully challenged
+
+Requirements:
+- Your conclusion should be approximately 2-5 minutes long when read aloud (target 400-1000 words, assuming 200 words per minute reading speed)
+- Be honest and reflective - if your position was successfully challenged, you may acknowledge this
+- Be clear and persuasive in restating why your position holds (or why you've changed your position if that's the case)
+
+Provide your complete concluding statement now.`;
+
+    const noConclusionPrompt = `You are concluding a structured debate. You argued AGAINST the proposition.
+
+Debate Topic:
+${topic}
+
+Complete Debate History:
+${noDebateHistory}
+
+Your task is to deliver your concluding statement. This is your final opportunity to:
+1. Summarize your main arguments and why they still hold
+2. Address how you responded to your opponent's challenges
+3. Reinforce why your position is correct
+4. You may acknowledge any weaknesses if appropriate, or concede if you believe your position has been successfully challenged
+
+Requirements:
+- Your conclusion should be approximately 2-5 minutes long when read aloud (target 400-1000 words, assuming 200 words per minute reading speed)
+- Be honest and reflective - if your position was successfully challenged, you may acknowledge this
+- Be clear and persuasive in restating why your position holds (or why you've changed your position if that's the case)
+
+Provide your complete concluding statement now.`;
+
+    // Generate conclusions in parallel
+    if (onStatusUpdate) {
+      onStatusUpdate(`Querying ${yesModel} for conclusion (FOR side)...`);
+      onStatusUpdate(`Querying ${noModel} for conclusion (AGAINST side)...`);
+    }
+
+    const [yesResponse, noResponse] = await Promise.all([
+      this.openRouterService.queryModel(
+        yesModel,
+        [{ role: 'user', content: yesConclusionPrompt }],
+        180000, // Longer timeout for conclusions
+        apiKey,
+      ).then((response) => {
+        if (onStatusUpdate) {
+          onStatusUpdate(`${yesModel} conclusion complete`);
+        }
+        return response;
+      }),
+      this.openRouterService.queryModel(
+        noModel,
+        [{ role: 'user', content: noConclusionPrompt }],
+        180000, // Longer timeout for conclusions
+        apiKey,
+      ).then((response) => {
+        if (onStatusUpdate) {
+          onStatusUpdate(`${noModel} conclusion complete`);
+        }
+        return response;
+      }),
+    ]);
+
+    if (!yesResponse || !yesResponse.content) {
+      throw new Error(`Failed to generate conclusion from ${yesModel}`);
+    }
+
+    if (!noResponse || !noResponse.content) {
+      throw new Error(`Failed to generate conclusion from ${noModel}`);
+    }
+
+    const yesConclusion: DebateMessage = {
+      role: 'yes',
+      model: yesModel,
+      content: yesResponse.content,
+      round: -1, // Use -1 to indicate conclusion
+      timestamp: new Date().toISOString(),
+    };
+
+    const noConclusion: DebateMessage = {
+      role: 'no',
+      model: noModel,
+      content: noResponse.content,
+      round: -1, // Use -1 to indicate conclusion
+      timestamp: new Date().toISOString(),
+    };
+
+    return {
+      yesConclusion,
+      noConclusion,
+    };
+  }
+
+  /**
    * Have a judge evaluate the debate.
    */
   async evaluateDebate(
     topic: string,
-    rounds: DebateRound[],
+    openingStatements: OpeningStatements,
+    rebuttalRounds: DebateRound[],
+    conclusions: Conclusions,
     judgeModel: string,
     judgePrompt: string,
     apiKey: string | null,
     onStatusUpdate?: (status: string) => void,
   ): Promise<JudgeEvaluation> {
     const startTime = Date.now();
-    this.logger.log(`[Judge ${judgeModel}] Starting evaluation for debate with ${rounds.length} rounds`);
+    this.logger.log(`[Judge ${judgeModel}] Starting evaluation for debate with ${rebuttalRounds.length} rebuttal rounds`);
 
-    // Build debate transcript
-    const transcript = rounds
+    // Build complete debate transcript
+    let transcript = '=== OPENING STATEMENTS ===\n\n';
+    transcript += `FOR (${openingStatements.yesStatement.model}):\n${openingStatements.yesStatement.content}\n\n`;
+    transcript += `AGAINST (${openingStatements.noStatement.model}):\n${openingStatements.noStatement.content}\n\n`;
+    
+    transcript += '=== REBUTTAL ROUNDS ===\n\n';
+    transcript += rebuttalRounds
       .map(
         (r) =>
-          `Round ${r.round}:\n` +
+          `Rebuttal Round ${r.round}:\n` +
           `FOR (${r.yesMessage.model}): ${r.yesMessage.content}\n\n` +
           `AGAINST (${r.noMessage.model}): ${r.noMessage.content}\n\n`,
       )
       .join('---\n\n');
+    
+    transcript += '=== CONCLUSIONS ===\n\n';
+    transcript += `FOR (${conclusions.yesConclusion.model}):\n${conclusions.yesConclusion.content}\n\n`;
+    transcript += `AGAINST (${conclusions.noConclusion.model}):\n${conclusions.noConclusion.content}\n\n`;
+
+    const baseEvaluationCriteria = `Evaluate the debate based on:
+
+1. MAIN POINTS: Analyze the main arguments presented by each debater throughout the entire debate (opening statements, rebuttals, and conclusions)
+
+2. PRESENTATION QUALITY: Evaluate which side better presented their case. Consider:
+   - Clarity and organization of arguments
+   - Persuasiveness and rhetorical effectiveness
+   - How well each side structured and delivered their points
+
+3. DEFENSE QUALITY: Evaluate which side better defended their case. Consider:
+   - How effectively each side responded to opponent's arguments
+   - Ability to counter attacks and maintain position
+   - Logical consistency and ability to defend against challenges
+
+4. ADDITIONAL CRITERIA: Reasoning quality, evidence strength, factual accuracy, logical consistency, and overall argumentation quality`;
 
     const evaluationPrompt = `You are an expert judge evaluating a structured debate.
 
 Debate Topic:
 ${topic}
 
-Debate Transcript:
+Complete Debate Transcript:
 ${transcript}
 
 Evaluation Criteria:
-${judgePrompt || 'Evaluate based on: reasoning quality, evidence strength, factual accuracy, logical consistency, persuasiveness, and overall argumentation quality.'}
+${judgePrompt ? `${baseEvaluationCriteria}\n\nAdditional instructions from user:\n${judgePrompt}` : baseEvaluationCriteria}
 
 Your task:
-1. Carefully review the entire debate
-2. Evaluate each side's arguments
-3. Consider the evaluation criteria provided
-4. Determine which side presented the stronger case
-5. Provide scores (0-100) for each side
-6. Declare a winner (or tie if appropriate)
-7. Provide detailed reasoning for your decision
+1. Carefully review the ENTIRE debate (opening statements, all rebuttal rounds, and conclusions)
+2. Analyze the main points presented by each side throughout the debate
+3. Evaluate which side better PRESENTED their case (clarity, organization, persuasiveness)
+4. Evaluate which side better DEFENDED their case (responses to attacks, maintaining position, logical consistency)
+5. Consider all the evaluation criteria provided above
+6. Provide scores (0-100) for each side based on overall performance
+7. Declare a winner (or tie if appropriate)
+8. Provide detailed reasoning for your decision
 
 Format your response as follows:
 
-EVALUATION:
-[Your detailed evaluation of both sides]
+MAIN POINTS ANALYSIS:
+[Analyze the key arguments from each side throughout the entire debate]
+
+PRESENTATION QUALITY:
+[Evaluate which side presented their case better and why]
+
+DEFENSE QUALITY:
+[Evaluate which side defended their case better and why]
 
 SCORES:
 FOR: [score 0-100]
@@ -434,7 +579,7 @@ AGAINST: [score 0-100]
 WINNER: [FOR/AGAINST/TIE]
 
 REASONING:
-[Your detailed reasoning for the scores and winner]`;
+[Your detailed reasoning for the scores and winner, incorporating all evaluation criteria]`;
 
     if (onStatusUpdate) {
       onStatusUpdate(`Sending debate transcript to ${judgeModel} for evaluation...`);
@@ -472,25 +617,129 @@ REASONING:
 
   /**
    * Parse scores from judge evaluation text.
+   * Handles various formats and normalizes scores to 0-100 scale.
    */
   private parseScores(text: string): { yes: number; no: number } | undefined {
-    const forMatch = text.match(/FOR:\s*(\d+)/i);
-    const againstMatch = text.match(/AGAINST:\s*(\d+)/i);
+    // Try multiple patterns for FOR score
+    const forPatterns = [
+      /FOR:\s*(\d+(?:\.\d+)?)/i,
+      /FOR\s+SCORE[:\s]+(\d+(?:\.\d+)?)/i,
+      /FOR\s+[:\s]+(\d+(?:\.\d+)?)/i,
+      /FOR\s*[:\-]\s*(\d+(?:\.\d+)?)/i,
+    ];
 
-    if (forMatch && againstMatch) {
-      return {
-        yes: parseInt(forMatch[1], 10),
-        no: parseInt(againstMatch[1], 10),
-      };
+    // Try multiple patterns for AGAINST score
+    const againstPatterns = [
+      /AGAINST:\s*(\d+(?:\.\d+)?)/i,
+      /AGAINST\s+SCORE[:\s]+(\d+(?:\.\d+)?)/i,
+      /AGAINST\s+[:\s]+(\d+(?:\.\d+)?)/i,
+      /AGAINST\s*[:\-]\s*(\d+(?:\.\d+)?)/i,
+    ];
+
+    let forScore: number | null = null;
+    let againstScore: number | null = null;
+
+    // Try to find FOR score
+    for (const pattern of forPatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        forScore = parseFloat(match[1]);
+        break;
+      }
     }
 
-    // Fallback: try to find any numbers
-    const numbers = text.match(/\b(\d{1,3})\b/g);
-    if (numbers && numbers.length >= 2) {
-      return {
-        yes: parseInt(numbers[0], 10),
-        no: parseInt(numbers[1], 10),
-      };
+    // Try to find AGAINST score
+    for (const pattern of againstPatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        againstScore = parseFloat(match[1]);
+        break;
+      }
+    }
+
+    // If we found both scores, normalize them to 0-100 scale
+    if (forScore !== null && againstScore !== null) {
+      // Check if scores are already in 0-100 range
+      const maxScore = Math.max(forScore, againstScore);
+      
+      // If max score is > 100, assume they're on a different scale and normalize
+      // If max score is <= 100, assume they're already on 0-100 scale
+      if (maxScore > 100) {
+        // Normalize to 0-100 scale (assuming original scale is 0 to maxScore)
+        const normalizedFor = (forScore / maxScore) * 100;
+        const normalizedAgainst = (againstScore / maxScore) * 100;
+        return {
+          yes: Math.round(normalizedFor * 100) / 100,
+          no: Math.round(normalizedAgainst * 100) / 100,
+        };
+      } else if (maxScore <= 10) {
+        // If scores are 0-10, scale to 0-100
+        return {
+          yes: Math.round((forScore / 10) * 100 * 100) / 100,
+          no: Math.round((againstScore / 10) * 100 * 100) / 100,
+        };
+      } else {
+        // Already in 0-100 range, return as-is
+        return {
+          yes: Math.round(forScore * 100) / 100,
+          no: Math.round(againstScore * 100) / 100,
+        };
+      }
+    }
+
+    // Fallback: try to find any two numbers near "FOR" and "AGAINST" keywords
+    const forSection = text.match(/FOR[^\n]*?(\d+(?:\.\d+)?)/i);
+    const againstSection = text.match(/AGAINST[^\n]*?(\d+(?:\.\d+)?)/i);
+
+    if (forSection && againstSection) {
+      const forVal = parseFloat(forSection[1]);
+      const againstVal = parseFloat(againstSection[1]);
+      const maxVal = Math.max(forVal, againstVal);
+
+      if (maxVal > 100) {
+        return {
+          yes: Math.round((forVal / maxVal) * 100 * 100) / 100,
+          no: Math.round((againstVal / maxVal) * 100 * 100) / 100,
+        };
+      } else if (maxVal <= 10) {
+        return {
+          yes: Math.round((forVal / 10) * 100 * 100) / 100,
+          no: Math.round((againstVal / 10) * 100 * 100) / 100,
+        };
+      } else {
+        return {
+          yes: Math.round(forVal * 100) / 100,
+          no: Math.round(againstVal * 100) / 100,
+        };
+      }
+    }
+
+    // Last resort: find any two numbers in the SCORES section
+    const scoresSection = text.match(/SCORES?:?\s*([\s\S]*?)(?:\n\n|\n[A-Z]|$)/i);
+    if (scoresSection) {
+      const numbers = scoresSection[1].match(/\b(\d+(?:\.\d+)?)\b/g);
+      if (numbers && numbers.length >= 2) {
+        const forVal = parseFloat(numbers[0]);
+        const againstVal = parseFloat(numbers[1]);
+        const maxVal = Math.max(forVal, againstVal);
+
+        if (maxVal > 100) {
+          return {
+            yes: Math.round((forVal / maxVal) * 100 * 100) / 100,
+            no: Math.round((againstVal / maxVal) * 100 * 100) / 100,
+          };
+        } else if (maxVal <= 10) {
+          return {
+            yes: Math.round((forVal / 10) * 100 * 100) / 100,
+            no: Math.round((againstVal / 10) * 100 * 100) / 100,
+          };
+        } else {
+          return {
+            yes: Math.round(forVal * 100) / 100,
+            no: Math.round(againstVal * 100) / 100,
+          };
+        }
+      }
     }
 
     return undefined;

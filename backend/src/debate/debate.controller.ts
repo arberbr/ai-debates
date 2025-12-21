@@ -38,6 +38,20 @@ export class DebateController {
       hasApiKey: !!dto.api_key,
     });
 
+    // Validate topic length (max 300 characters)
+    if (!dto.topic || dto.topic.trim().length === 0) {
+      res.status(HttpStatus.BAD_REQUEST).json({
+        error: 'Topic is required',
+      });
+      return;
+    }
+    if (dto.topic.length > 300) {
+      res.status(HttpStatus.BAD_REQUEST).json({
+        error: 'Topic must be 300 characters or less. Longer topics are not supported.',
+      });
+      return;
+    }
+
     // Set SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -137,27 +151,28 @@ export class DebateController {
       throw new Error('OpenRouter API key is required');
     }
 
-    // Use a mutable variable for topic (may be rewritten)
-    let currentTopic = topic;
+    // Keep original topic for debate participants (they use the original text)
+    const originalTopic = topic;
 
     try {
-      // Stage 0: Rewrite topic to concise format
+      // Stage 1: Generate title (first step)
       this.sendSSEEvent(res, {
-        type: 'topic_rewrite_start',
-        stage: 'topic_rewrite_start',
-        message: 'Analyzing and rewriting topic...',
+        type: 'title_generation_start',
+        stage: 'title_generation_start',
+        message: 'Generating debate title...',
         debateId,
         timestamp: new Date().toISOString(),
       });
 
+      let debateTitle: string;
       try {
-        const rewrittenTopic = await this.debateService.rewriteTopic(
-          currentTopic,
+        debateTitle = await this.debateService.generateTitle(
+          originalTopic,
           normalizedApiKey,
           (status) => {
             this.sendSSEEvent(res, {
               type: 'status_update',
-              stage: 'topic_rewrite_progress',
+              stage: 'title_generation_start',
               message: status,
               debateId,
               timestamp: new Date().toISOString(),
@@ -166,150 +181,109 @@ export class DebateController {
         );
 
         this.sendSSEEvent(res, {
-          type: 'topic_rewrite_complete',
-          stage: 'topic_rewrite_complete',
-          data: { rewrittenTopic },
-          message: 'Topic rewritten successfully',
+          type: 'title_generation_complete',
+          stage: 'title_generation_complete',
+          data: { title: debateTitle },
+          message: 'Title generated successfully',
           debateId,
           timestamp: new Date().toISOString(),
         });
-
-        // Update topic to use the rewritten version for the rest of the debate
-        currentTopic = rewrittenTopic;
-      } catch (rewriteError: any) {
-        const errorMessage = rewriteError.message || 'Unknown error occurred during topic rewrite';
-        this.logger.warn(`Topic rewrite failed: ${errorMessage}, using original topic`);
-        // Continue with original topic if rewrite fails
+      } catch (titleError: any) {
+        const errorMessage = titleError.message || 'Unknown error occurred during title generation';
+        this.logger.error(`Title generation failed: ${errorMessage}`);
+        // Use fallback title
+        debateTitle = originalTopic.split('\n')[0].substring(0, 80).trim();
         this.sendSSEEvent(res, {
           type: 'status_update',
-          stage: 'topic_rewrite_progress',
-          message: `Topic rewrite failed, using original topic: ${errorMessage}`,
+          stage: 'title_generation_start',
+          message: `Title generation failed, using fallback: ${errorMessage}`,
           debateId,
           timestamp: new Date().toISOString(),
         });
       }
 
-      // Stage 1: Analyze topic
+      // Stage 2: Generate opening statements
       this.sendSSEEvent(res, {
-        type: 'analysis_start',
-        stage: 'analysis_start',
-        message: 'Analyzing topic with debate participants...',
+        type: 'opening_statements_start',
+        stage: 'opening_statements_start',
+        message: 'Generating opening statements...',
         debateId,
         timestamp: new Date().toISOString(),
       });
 
-      let yesAnalysis: string;
-      let noAnalysis: string;
+      let openingStatements: any;
       try {
-        // Send status updates during analysis
-        this.sendSSEEvent(res, {
-          type: 'status_update',
-          stage: 'analysis_start',
-          message: `Analyzing topic with ${yesModel} (FOR side)...`,
-          debateId,
-          timestamp: new Date().toISOString(),
-        });
-
-        this.sendSSEEvent(res, {
-          type: 'status_update',
-          stage: 'analysis_start',
-          message: `Analyzing topic with ${noModel} (AGAINST side)...`,
-          debateId,
-          timestamp: new Date().toISOString(),
-        });
-
-        const analysisResult = await this.debateService.analyzeTopic(
-          currentTopic,
+        openingStatements = await this.debateService.generateOpeningStatements(
+          originalTopic, // Use original topic for debate participants
           yesModel,
           noModel,
           normalizedApiKey,
           (status) => {
-            // Send progress updates from service
             this.sendSSEEvent(res, {
               type: 'status_update',
-              stage: 'analysis_progress',
+              stage: 'opening_statements_start',
               message: status,
               debateId,
               timestamp: new Date().toISOString(),
             });
           },
         );
-        yesAnalysis = analysisResult.yesAnalysis;
-        noAnalysis = analysisResult.noAnalysis;
 
         this.sendSSEEvent(res, {
-          type: 'analysis_complete',
-          stage: 'analysis_complete',
-          data: { yesAnalysis, noAnalysis },
-          message: 'Topic analysis complete',
+          type: 'opening_statements_complete',
+          stage: 'opening_statements_complete',
+          data: openingStatements,
+          message: 'Opening statements complete',
           debateId,
           timestamp: new Date().toISOString(),
         });
-      } catch (analysisError: any) {
-        const errorMessage = analysisError.message || 'Unknown error occurred during topic analysis';
+      } catch (openingError: any) {
+        const errorMessage = openingError.message || 'Unknown error occurred during opening statements';
         this.sendSSEEvent(res, {
           type: 'error',
           stage: 'error',
-          message: `Error during topic analysis: ${errorMessage}`,
+          message: `Error during opening statements: ${errorMessage}`,
           data: { error: errorMessage },
           debateId,
           timestamp: new Date().toISOString(),
         });
-        throw analysisError; // Re-throw to be caught by outer try-catch
+        throw openingError;
       }
 
-      // Stage 2: Conduct debate rounds
+      // Stage 3: Conduct rebuttal rounds
       this.sendSSEEvent(res, {
-        type: 'debate_start',
-        stage: 'debate_start',
-        message: 'Starting debate rounds...',
+        type: 'rebuttals_start',
+        stage: 'rebuttals_start',
+        message: 'Starting rebuttal rounds...',
         debateId,
         timestamp: new Date().toISOString(),
       });
 
-      const debateRounds: any[] = [];
+      const rebuttalRounds: any[] = [];
 
       for (let round = 1; round <= rounds; round++) {
         try {
           this.sendSSEEvent(res, {
-            type: 'round_start',
-            stage: 'round_start',
+            type: 'rebuttal_round_start',
+            stage: 'rebuttal_round_start',
             data: { round },
-            message: `Starting round ${round} of ${rounds}...`,
+            message: `Starting rebuttal round ${round} of ${rounds}...`,
             debateId,
             timestamp: new Date().toISOString(),
           });
 
-          this.sendSSEEvent(res, {
-            type: 'status_update',
-            stage: 'round_progress',
-            message: `Querying ${yesModel} for round ${round} (FOR side)...`,
-            debateId,
-            timestamp: new Date().toISOString(),
-          });
-
-          this.sendSSEEvent(res, {
-            type: 'status_update',
-            stage: 'round_progress',
-            message: `Querying ${noModel} for round ${round} (AGAINST side)...`,
-            debateId,
-            timestamp: new Date().toISOString(),
-          });
-
-          const debateRound = await this.debateService.conductDebateRound(
-            currentTopic,
+          const rebuttalRound = await this.debateService.conductRebuttalRound(
+            originalTopic, // Use original topic
             yesModel,
             noModel,
             round,
-            debateRounds,
-            yesAnalysis,
-            noAnalysis,
+            openingStatements,
+            rebuttalRounds,
             normalizedApiKey,
             (status) => {
-              // Send progress updates from service
               this.sendSSEEvent(res, {
                 type: 'status_update',
-                stage: 'round_progress',
+                stage: 'rebuttal_round_start',
                 message: status,
                 debateId,
                 timestamp: new Date().toISOString(),
@@ -317,48 +291,90 @@ export class DebateController {
             },
           );
 
-          this.sendSSEEvent(res, {
-            type: 'status_update',
-            stage: 'round_progress',
-            message: `Round ${round} responses received, processing...`,
-            debateId,
-            timestamp: new Date().toISOString(),
-          });
-
-          debateRounds.push(debateRound);
+          rebuttalRounds.push(rebuttalRound);
 
           this.sendSSEEvent(res, {
-            type: 'round_complete',
-            stage: 'round_complete',
-            data: debateRound,
-            message: `Round ${round} complete`,
+            type: 'rebuttal_round_complete',
+            stage: 'rebuttal_round_complete',
+            data: rebuttalRound,
+            message: `Rebuttal round ${round} complete`,
             debateId,
             timestamp: new Date().toISOString(),
           });
         } catch (roundError: any) {
-          const errorMessage = roundError.message || 'Unknown error occurred during debate round';
+          const errorMessage = roundError.message || 'Unknown error occurred during rebuttal round';
           this.sendSSEEvent(res, {
             type: 'error',
             stage: 'error',
-            message: `Error in round ${round}: ${errorMessage}`,
+            message: `Error in rebuttal round ${round}: ${errorMessage}`,
             data: { round, error: errorMessage },
             debateId,
             timestamp: new Date().toISOString(),
           });
-          throw roundError; // Re-throw to be caught by outer try-catch
+          throw roundError;
         }
       }
 
       this.sendSSEEvent(res, {
-        type: 'debate_complete',
-        stage: 'debate_complete',
-        data: { rounds: debateRounds },
-        message: 'All debate rounds complete',
+        type: 'rebuttals_complete',
+        stage: 'rebuttals_complete',
+        data: { rounds: rebuttalRounds },
+        message: 'All rebuttal rounds complete',
         debateId,
         timestamp: new Date().toISOString(),
       });
 
-      // Stage 3: Judge evaluation
+      // Stage 4: Generate conclusions
+      this.sendSSEEvent(res, {
+        type: 'conclusions_start',
+        stage: 'conclusions_start',
+        message: 'Generating conclusions...',
+        debateId,
+        timestamp: new Date().toISOString(),
+      });
+
+      let conclusions: any;
+      try {
+        conclusions = await this.debateService.generateConclusions(
+          originalTopic,
+          yesModel,
+          noModel,
+          openingStatements,
+          rebuttalRounds,
+          normalizedApiKey,
+          (status) => {
+            this.sendSSEEvent(res, {
+              type: 'status_update',
+              stage: 'conclusions_start',
+              message: status,
+              debateId,
+              timestamp: new Date().toISOString(),
+            });
+          },
+        );
+
+        this.sendSSEEvent(res, {
+          type: 'conclusions_complete',
+          stage: 'conclusions_complete',
+          data: conclusions,
+          message: 'Conclusions complete',
+          debateId,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (conclusionError: any) {
+        const errorMessage = conclusionError.message || 'Unknown error occurred during conclusions';
+        this.sendSSEEvent(res, {
+          type: 'error',
+          stage: 'error',
+          message: `Error during conclusions: ${errorMessage}`,
+          data: { error: errorMessage },
+          debateId,
+          timestamp: new Date().toISOString(),
+        });
+        throw conclusionError;
+      }
+
+      // Stage 5: Judge evaluation
       this.logger.log(`[${debateId}] Starting judge evaluation stage`);
       
       this.sendSSEEvent(res, {
@@ -369,20 +385,13 @@ export class DebateController {
         timestamp: new Date().toISOString(),
       });
 
-      // Define judge models and deduplicate using Set to prevent any duplicates
       const judgeModels = [
         'openai/gpt-5.2',
         'anthropic/claude-sonnet-4.5',
         'google/gemini-3-pro-preview',
       ];
       
-      // Deduplicate the array in case of any accidental duplicates
       const uniqueJudgeModels = Array.from(new Set(judgeModels));
-      
-      if (uniqueJudgeModels.length !== judgeModels.length) {
-        this.logger.warn(`[${debateId}] Found duplicate judges in array. Original: ${judgeModels.length}, Unique: ${uniqueJudgeModels.length}`);
-      }
-
       const judgeEvaluations: any[] = [];
 
       for (const judgeModel of uniqueJudgeModels) {
@@ -397,13 +406,14 @@ export class DebateController {
           });
 
           const evaluation = await this.debateService.evaluateDebate(
-            currentTopic,
-            debateRounds,
+            originalTopic,
+            openingStatements,
+            rebuttalRounds,
+            conclusions,
             judgeModel,
             judgePrompt,
             normalizedApiKey,
             (status) => {
-              // Send progress updates from service
               this.sendSSEEvent(res, {
                 type: 'status_update',
                 stage: 'judging_progress',
@@ -413,14 +423,6 @@ export class DebateController {
               });
             },
           );
-
-          this.sendSSEEvent(res, {
-            type: 'status_update',
-            stage: 'judging_progress',
-            message: `Judge ${judgeModel} completed evaluation, parsing results...`,
-            debateId,
-            timestamp: new Date().toISOString(),
-          });
 
           judgeEvaluations.push(evaluation);
           this.logger.log(`[${debateId}] Judge ${judgeModel} evaluation completed successfully`);
@@ -451,9 +453,7 @@ export class DebateController {
       this.logger.log(`[${debateId}] Judge evaluation stage complete. Processed ${judgeEvaluations.length} of ${uniqueJudgeModels.length} judges`);
 
       // Calculate final result
-      const finalResult = this.debateService.calculateFinalResult(
-        judgeEvaluations,
-      );
+      const finalResult = this.debateService.calculateFinalResult(judgeEvaluations);
 
       this.sendSSEEvent(res, {
         type: 'judging_complete',
@@ -473,10 +473,13 @@ export class DebateController {
         stage: 'complete',
         data: {
           debateId,
-          topic: currentTopic,
+          topic: originalTopic,
+          title: debateTitle,
           yesModel,
           noModel,
-          rounds: debateRounds,
+          openingStatements,
+          rounds: rebuttalRounds,
+          conclusions,
           judgeEvaluations,
           finalResult,
         },

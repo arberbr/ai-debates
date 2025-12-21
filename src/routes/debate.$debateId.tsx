@@ -1,9 +1,10 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useEffect, useState, useRef } from 'react'
 import { Button } from "@/components/ui/button"
 import { useNavigate } from '@tanstack/react-router'
 import ReactMarkdown from 'react-markdown'
+import { calculateReadingTime } from '@/lib/utils'
 
 const API_KEY_STORAGE_KEY = 'openrouter_api_key'
 const SAVED_DEBATES_KEY = 'saved_debates'
@@ -16,10 +17,22 @@ interface SavedDebate {
   noModel: string
   rounds: string
   judgePrompt: string
+  openingStatements?: OpeningStatements
   debateRounds: DebateRound[]
+  conclusions?: Conclusions
   judgeEvaluations: JudgeEvaluation[]
   finalResult: any
   timestamp: string
+}
+
+interface OpeningStatements {
+  yesStatement: DebateMessage
+  noStatement: DebateMessage
+}
+
+interface Conclusions {
+  yesConclusion: DebateMessage
+  noConclusion: DebateMessage
 }
 
 // Reusable Markdown component with consistent styling
@@ -76,7 +89,7 @@ interface JudgeEvaluation {
 }
 
 // Helper function to clean markdown formatting from titles
-const cleanTitle = (title: string): string => {
+const cleanString = (title: string): string => {
   let cleaned = title.trim()
   // Remove markdown bold markers (**)
   cleaned = cleaned.replace(/\*\*/g, '')
@@ -95,11 +108,15 @@ function DebateComponent() {
   const navigate = useNavigate()
   const [status, setStatus] = useState<string>('Initializing...')
   const [displayTopic, setDisplayTopic] = useState<string>('Debate Chat')
+  const [openingStatements, setOpeningStatements] = useState<OpeningStatements | null>(null)
   const [debateRounds, setDebateRounds] = useState<DebateRound[]>([])
+  const [conclusions, setConclusions] = useState<Conclusions | null>(null)
   const [judgeEvaluations, setJudgeEvaluations] = useState<JudgeEvaluation[]>([])
   const [finalResult, setFinalResult] = useState<any>(null)
   const [isComplete, setIsComplete] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [yesModel, setYesModel] = useState<string>('')
+  const [noModel, setNoModel] = useState<string>('')
   const hasStartedRef = useRef(false)
   
   // Load debate config from localStorage
@@ -128,8 +145,12 @@ function DebateComponent() {
         if (savedDebate && savedDebate.debateRounds && savedDebate.debateRounds.length > 0) {
           // Load saved debate data
           const savedTitle = savedDebate.topic || 'Debate Chat'
-          setDisplayTopic(cleanTitle(savedTitle))
+          setDisplayTopic(cleanString(savedTitle))
+          setYesModel(savedDebate.yesModel || '')
+          setNoModel(savedDebate.noModel || '')
+          setOpeningStatements(savedDebate.openingStatements || null)
           setDebateRounds(savedDebate.debateRounds || [])
+          setConclusions(savedDebate.conclusions || null)
           setJudgeEvaluations(savedDebate.judgeEvaluations || [])
           setFinalResult(savedDebate.finalResult || null)
           setIsComplete(true)
@@ -255,7 +276,7 @@ function DebateComponent() {
             const titleData = await titleResponse.json()
             if (titleData.title) {
               // Clean the title before displaying
-              const cleanedTitle = cleanTitle(titleData.title)
+              const cleanedTitle = cleanString(titleData.title)
               setDisplayTopic(cleanedTitle)
               setStatus('Title generated. Starting debate...')
             }
@@ -358,43 +379,47 @@ function DebateComponent() {
         case 'stream_start':
           setStatus('Stream initialized...')
           break
-        case 'topic_rewrite_start':
-          setStatus(data.message || 'Rewriting topic...')
+        case 'title_generation_start':
+          setStatus(data.message || 'Generating title...')
           break
-        case 'topic_rewrite_progress':
-          setStatus(data.message || 'Rewriting topic...')
+        case 'title_generation_complete':
+          if (data.data?.title) {
+            setDisplayTopic(cleanString(data.data.title))
+          }
+          setStatus('Title generated. Starting debate...')
           break
-        case 'topic_rewrite_complete':
-          // Don't override the title we already generated
-          // The rewritten topic is used for debate content, but we keep the generated title for display
-          setStatus('Topic rewritten. Starting analysis...')
+        case 'opening_statements_start':
+          setStatus(data.message || 'Generating opening statements...')
           break
-        case 'analysis_start':
-          setStatus(data.message || 'Analyzing topic...')
+        case 'opening_statements_complete':
+          if (data.data) {
+            setOpeningStatements(data.data)
+          }
+          setStatus('Opening statements complete')
           break
-        case 'analysis_progress':
-          setStatus(data.message || 'Analyzing topic...')
+        case 'rebuttals_start':
+          setStatus(data.message || 'Starting rebuttal rounds...')
           break
-        case 'analysis_complete':
-          setStatus('Topic analysis complete. Starting debate...')
+        case 'rebuttal_round_start':
+          setStatus(data.message || `Starting rebuttal round ${data.data?.round}...`)
           break
-        case 'debate_start':
-          setStatus('Debate starting...')
-          break
-        case 'round_start':
-          setStatus(`Round ${data.data?.round} starting...`)
-          break
-        case 'round_progress':
-          setStatus(data.message || 'Processing round...')
-          break
-        case 'round_complete':
+        case 'rebuttal_round_complete':
           if (data.data) {
             setDebateRounds((prev) => [...prev, data.data])
-            setStatus(`Round ${data.data.round} complete`)
+            setStatus(`Rebuttal round ${data.data.round} complete`)
           }
           break
-        case 'debate_complete':
-          setStatus('Debate complete. Judges evaluating...')
+        case 'rebuttals_complete':
+          setStatus('All rebuttal rounds complete')
+          break
+        case 'conclusions_start':
+          setStatus(data.message || 'Generating conclusions...')
+          break
+        case 'conclusions_complete':
+          if (data.data) {
+            setConclusions(data.data)
+          }
+          setStatus('Conclusions complete')
           break
         case 'judging_start':
           setStatus('Judges evaluating debate...')
@@ -417,8 +442,47 @@ function DebateComponent() {
         case 'complete':
           setIsComplete(true)
           setStatus('Debate process complete!')
-          if (data.data?.finalResult) {
-            setFinalResult(data.data.finalResult)
+          // Load all data from the complete event
+          if (data.data) {
+            // Save models from complete event
+            if (data.data.yesModel) {
+              setYesModel(data.data.yesModel)
+            }
+            if (data.data.noModel) {
+              setNoModel(data.data.noModel)
+            }
+            if (data.data.openingStatements) {
+              setOpeningStatements(data.data.openingStatements)
+              // Also extract models from opening statements if not already set
+              if (!data.data.yesModel && data.data.openingStatements.yesStatement?.model) {
+                setYesModel(data.data.openingStatements.yesStatement.model)
+              }
+              if (!data.data.noModel && data.data.openingStatements.noStatement?.model) {
+                setNoModel(data.data.openingStatements.noStatement.model)
+              }
+            }
+            if (data.data.rounds && Array.isArray(data.data.rounds)) {
+              setDebateRounds(data.data.rounds)
+            }
+            if (data.data.conclusions) {
+              setConclusions(data.data.conclusions)
+              // Also extract models from conclusions if not already set
+              if (!data.data.yesModel && data.data.conclusions.yesConclusion?.model) {
+                setYesModel(data.data.conclusions.yesConclusion.model)
+              }
+              if (!data.data.noModel && data.data.conclusions.noConclusion?.model) {
+                setNoModel(data.data.conclusions.noConclusion.model)
+              }
+            }
+            if (data.data.judgeEvaluations) {
+              setJudgeEvaluations(data.data.judgeEvaluations)
+            }
+            if (data.data.finalResult) {
+              setFinalResult(data.data.finalResult)
+            }
+            if (data.data.title) {
+              setDisplayTopic(cleanString(data.data.title))
+            }
           }
           break
         case 'status_update':
@@ -458,15 +522,29 @@ function DebateComponent() {
 
   // Save debate to localStorage when complete
   useEffect(() => {
-    if (isComplete && debateRounds.length > 0) {
+    if (isComplete && (debateRounds.length > 0 || openingStatements || conclusions)) {
+      // Determine models from multiple sources (priority: state > opening statements > conclusions > debateConfig)
+      const determinedYesModel = yesModel || 
+        openingStatements?.yesStatement?.model || 
+        conclusions?.yesConclusion?.model || 
+        debateConfig?.yesModel || 
+        ''
+      const determinedNoModel = noModel || 
+        openingStatements?.noStatement?.model || 
+        conclusions?.noConclusion?.model || 
+        debateConfig?.noModel || 
+        ''
+
       const savedDebate: SavedDebate = {
         debateId,
         topic: displayTopic || debateConfig?.topic || '',
-        yesModel: debateConfig?.yesModel || '',
-        noModel: debateConfig?.noModel || '',
+        yesModel: determinedYesModel,
+        noModel: determinedNoModel,
         rounds: debateConfig?.rounds || '3',
         judgePrompt: debateConfig?.judgePrompt || '',
+        openingStatements: openingStatements || undefined,
         debateRounds,
+        conclusions: conclusions || undefined,
         judgeEvaluations,
         finalResult,
         timestamp: new Date().toISOString(),
@@ -486,8 +564,9 @@ function DebateComponent() {
 
       // Save back to localStorage
       localStorage.setItem(SAVED_DEBATES_KEY, JSON.stringify(debates))
+      console.log('Debate saved to localStorage:', debateId, { yesModel: determinedYesModel, noModel: determinedNoModel })
     }
-  }, [isComplete, debateId, displayTopic, debateConfig, debateRounds, judgeEvaluations, finalResult])
+  }, [isComplete, debateId, displayTopic, debateConfig, yesModel, noModel, openingStatements, debateRounds, conclusions, judgeEvaluations, finalResult])
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
@@ -517,9 +596,9 @@ function DebateComponent() {
                 </div>
               )}
 
-              {/* Debate Rounds */}
-              <div className="border rounded-lg min-h-[400px] bg-muted/30 space-y-6 max-h-[700px] overflow-y-auto shadow-sm pr-6">
-                {debateRounds.length === 0 && !error && (
+              {/* Debate Content */}
+              <div className="border rounded-lg min-h-[400px] bg-muted/30 space-y-6 max-h-[700px] overflow-y-auto shadow-sm p-6">
+                {!openingStatements && debateRounds.length === 0 && !conclusions && !error && (
                   <div className="flex items-center justify-center h-full min-h-[300px]">
                     <p className="text-center text-muted-foreground text-lg">
                       {status || 'Waiting for debate to start...'}
@@ -527,6 +606,56 @@ function DebateComponent() {
                   </div>
                 )}
 
+                {/* Opening Statements */}
+                {openingStatements && (
+                  <div className="space-y-4 border-b border-border/50 pb-6">
+                    <div className="flex items-center gap-2">
+                      <div className="px-3 py-1 bg-primary/10 text-primary font-semibold rounded-full text-sm">
+                        Opening Statements
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="p-5 bg-blue-500/10 rounded-lg border border-blue-500/20 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="px-3 py-1 bg-blue-600 text-white font-semibold rounded-md text-sm">
+                              FOR
+                            </div>
+                            <div className="text-sm text-muted-foreground font-medium">
+                              {openingStatements.yesStatement.model}
+                            </div>
+                          </div>
+                          <div className="text-xs text-muted-foreground/70">
+                            {calculateReadingTime(openingStatements.yesStatement.content)}
+                          </div>
+                        </div>
+                        <div className="text-base leading-relaxed">
+                          <MarkdownContent content={openingStatements.yesStatement.content} />
+                        </div>
+                      </div>
+                      <div className="p-5 bg-red-500/10 rounded-lg border border-red-500/20 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="px-3 py-1 bg-red-600 text-white font-semibold rounded-md text-sm">
+                              AGAINST
+                            </div>
+                            <div className="text-sm text-muted-foreground font-medium">
+                              {openingStatements.noStatement.model}
+                            </div>
+                          </div>
+                          <div className="text-xs text-muted-foreground/70">
+                            {calculateReadingTime(openingStatements.noStatement.content)}
+                          </div>
+                        </div>
+                        <div className="text-base leading-relaxed">
+                          <MarkdownContent content={openingStatements.noStatement.content} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Rebuttal Rounds */}
                 {debateRounds.map((round, idx) => (
                   <div key={idx} className="space-y-4 border-b border-border/50 pb-6 last:border-b-0 last:pb-0">
                     <div className="flex items-center gap-2">
@@ -536,12 +665,17 @@ function DebateComponent() {
                     </div>
                     <div className="space-y-4">
                       <div className="p-5 bg-blue-500/10 rounded-lg border border-blue-500/20 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="px-3 py-1 bg-blue-600 text-white font-semibold rounded-md text-sm">
-                            FOR
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="px-3 py-1 bg-blue-600 text-white font-semibold rounded-md text-sm">
+                              FOR
+                            </div>
+                            <div className="text-sm text-muted-foreground font-medium">
+                              {round.yesMessage.model}
+                            </div>
                           </div>
-                          <div className="text-sm text-muted-foreground font-medium">
-                            {round.yesMessage.model}
+                          <div className="text-xs text-muted-foreground/70">
+                            {calculateReadingTime(round.yesMessage.content)}
                           </div>
                         </div>
                         <div className="text-base leading-relaxed">
@@ -549,12 +683,17 @@ function DebateComponent() {
                         </div>
                       </div>
                       <div className="p-5 bg-red-500/10 rounded-lg border border-red-500/20 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="px-3 py-1 bg-red-600 text-white font-semibold rounded-md text-sm">
-                            AGAINST
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="px-3 py-1 bg-red-600 text-white font-semibold rounded-md text-sm">
+                              AGAINST
+                            </div>
+                            <div className="text-sm text-muted-foreground font-medium">
+                              {round.noMessage.model}
+                            </div>
                           </div>
-                          <div className="text-sm text-muted-foreground font-medium">
-                            {round.noMessage.model}
+                          <div className="text-xs text-muted-foreground/70">
+                            {calculateReadingTime(round.noMessage.content)}
                           </div>
                         </div>
                         <div className="text-base leading-relaxed">
@@ -564,6 +703,55 @@ function DebateComponent() {
                     </div>
                   </div>
                 ))}
+
+                {/* Conclusions */}
+                {conclusions && (
+                  <div className="space-y-4 border-t border-border/50 pt-6 mt-6">
+                    <div className="flex items-center gap-2">
+                      <div className="px-3 py-1 bg-primary/10 text-primary font-semibold rounded-full text-sm">
+                        Conclusions
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="p-5 bg-blue-500/10 rounded-lg border border-blue-500/20 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="px-3 py-1 bg-blue-600 text-white font-semibold rounded-md text-sm">
+                              FOR
+                            </div>
+                            <div className="text-sm text-muted-foreground font-medium">
+                              {conclusions.yesConclusion.model}
+                            </div>
+                          </div>
+                          <div className="text-xs text-muted-foreground/70">
+                            {calculateReadingTime(conclusions.yesConclusion.content)}
+                          </div>
+                        </div>
+                        <div className="text-base leading-relaxed">
+                          <MarkdownContent content={conclusions.yesConclusion.content} />
+                        </div>
+                      </div>
+                      <div className="p-5 bg-red-500/10 rounded-lg border border-red-500/20 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="px-3 py-1 bg-red-600 text-white font-semibold rounded-md text-sm">
+                              AGAINST
+                            </div>
+                            <div className="text-sm text-muted-foreground font-medium">
+                              {conclusions.noConclusion.model}
+                            </div>
+                          </div>
+                          <div className="text-xs text-muted-foreground/70">
+                            {calculateReadingTime(conclusions.noConclusion.content)}
+                          </div>
+                        </div>
+                        <div className="text-base leading-relaxed">
+                          <MarkdownContent content={conclusions.noConclusion.content} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Judge Evaluations */}
