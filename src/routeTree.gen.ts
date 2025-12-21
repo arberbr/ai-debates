@@ -9,9 +9,21 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as DebatesRouteImport } from './routes/debates'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DebateDebateIdRouteImport } from './routes/debate.$debateId'
 
+const LeaderboardRoute = LeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DebatesRoute = DebatesRouteImport.update({
+  id: '/debates',
+  path: '/debates',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -25,32 +37,54 @@ const DebateDebateIdRoute = DebateDebateIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/debates': typeof DebatesRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/debate/$debateId': typeof DebateDebateIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/debates': typeof DebatesRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/debate/$debateId': typeof DebateDebateIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/debates': typeof DebatesRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/debate/$debateId': typeof DebateDebateIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/debate/$debateId'
+  fullPaths: '/' | '/debates' | '/leaderboard' | '/debate/$debateId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/debate/$debateId'
-  id: '__root__' | '/' | '/debate/$debateId'
+  to: '/' | '/debates' | '/leaderboard' | '/debate/$debateId'
+  id: '__root__' | '/' | '/debates' | '/leaderboard' | '/debate/$debateId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DebatesRoute: typeof DebatesRoute
+  LeaderboardRoute: typeof LeaderboardRoute
   DebateDebateIdRoute: typeof DebateDebateIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/leaderboard': {
+      id: '/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof LeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/debates': {
+      id: '/debates'
+      path: '/debates'
+      fullPath: '/debates'
+      preLoaderRoute: typeof DebatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -70,6 +104,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DebatesRoute: DebatesRoute,
+  LeaderboardRoute: LeaderboardRoute,
   DebateDebateIdRoute: DebateDebateIdRoute,
 }
 export const routeTree = rootRouteImport
