@@ -74,7 +74,7 @@
    Markdown Content
    ======================================== */
 
-   .markdown-content p {
+  .markdown-content p {
     margin: 0 0 var(--space-3) 0;
   }
   

@@ -16,41 +16,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { useState, useEffect } from 'react'
-
-const MODEL_OPTIONS = [
-  { slug: 'anthropic/claude-sonnet-4.5', name: 'Anthropic: Claude Sonnet 4.5' },
-  { slug: 'deepseek/deepseek-v3.2', name: 'DeepSeek: DeepSeek V3.2' },
-  { slug: 'google/gemini-3-pro-preview', name: 'Google: Gemini 3 Pro' },
-  { slug: 'openai/gpt-5.2', name: 'OpenAI: GPT-5.2' },
-  { slug: 'x-ai/grok-4', name: 'xAI: Grok 4' },
-  { slug: 'mistralai/mistral-medium-3.1', name: 'Mistral: Mistral Medium 3.1' },
-]
-
-const API_KEY_STORAGE_KEY = 'openrouter_api_key'
+import { Toast } from "@/components/ui/toast"
+import { useState } from 'react'
+import { MODEL_OPTIONS, STORAGE_KEYS, DEBATE_CONFIG } from '@/lib/constants'
+import { useApiKey } from '@/hooks/useApiKey'
 
 function IndexComponent() {
   const navigate = useNavigate()
-  const [apiKey, setApiKey] = useState<string>('')
-  const [showApiKeyField, setShowApiKeyField] = useState(false)
+  const { apiKey, showApiKeyField, setShowApiKeyField, updateApiKey, hasApiKey } = useApiKey()
   const [showToast, setShowToast] = useState(false)
   const [isCardUnmounting, setIsCardUnmounting] = useState(false)
 
-  // Check localStorage on mount
-  useEffect(() => {
-    const storedApiKey = localStorage.getItem(API_KEY_STORAGE_KEY)
-    if (storedApiKey) {
-      setApiKey(storedApiKey)
-      setShowApiKeyField(false)
-    } else {
-      setShowApiKeyField(true)
-    }
-  }, [])
-
   const handleApiKeyChange = (value: string) => {
-    setApiKey(value)
+    updateApiKey(value)
     if (value.trim()) {
-      localStorage.setItem(API_KEY_STORAGE_KEY, value.trim())
       // Show toast
       setShowToast(true)
       // Start unmounting animation
@@ -64,8 +43,6 @@ function IndexComponent() {
       setTimeout(() => {
         setShowToast(false)
       }, 3000)
-    } else {
-      localStorage.removeItem(API_KEY_STORAGE_KEY)
     }
   }
   
@@ -95,14 +72,14 @@ function IndexComponent() {
         return
       }
 
-      // Validate topic length (max 300 characters)
-      if (topic.length > 300) {
-        alert('Topic must be 300 characters or less. Please shorten your topic.')
+      // Validate topic length
+      if (topic.length > DEBATE_CONFIG.MAX_TOPIC_LENGTH) {
+        alert(`Topic must be ${DEBATE_CONFIG.MAX_TOPIC_LENGTH} characters or less. Please shorten your topic.`)
         return
       }
 
       // Validate API key
-      const currentApiKey = localStorage.getItem(API_KEY_STORAGE_KEY)
+      const currentApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY)
       if (!currentApiKey || !currentApiKey.trim()) {
         alert('Please enter your OpenRouter API key')
         setShowApiKeyField(true)
@@ -124,12 +101,12 @@ function IndexComponent() {
       }
       
       // Store in a temporary key that will be used when the debate page loads
-      const pendingDebates = JSON.parse(localStorage.getItem('pending_debates') || '{}')
+      const pendingDebates = JSON.parse(localStorage.getItem(STORAGE_KEYS.PENDING_DEBATES) || '{}')
       pendingDebates[debateId] = debateConfig
-      localStorage.setItem('pending_debates', JSON.stringify(pendingDebates))
+      localStorage.setItem(STORAGE_KEYS.PENDING_DEBATES, JSON.stringify(pendingDebates))
       
       // Verify it was saved
-      const verify = JSON.parse(localStorage.getItem('pending_debates') || '{}')
+      const verify = JSON.parse(localStorage.getItem(STORAGE_KEYS.PENDING_DEBATES) || '{}')
       if (!verify[debateId]) {
         console.error('Failed to save debate config to localStorage')
         alert('Failed to save debate configuration. Please try again.')
@@ -144,30 +121,15 @@ function IndexComponent() {
     }
   })
 
-  const hasApiKey = apiKey.trim().length > 0
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
       {/* Toast Notification */}
       {showToast && (
-        <div className="fixed bottom-4 right-4 z-50 animate-[slideUp_0.3s_ease-out]">
-          <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2">
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-            <span>API key saved successfully!</span>
-          </div>
-        </div>
+        <Toast
+          message="API key saved successfully!"
+          type="success"
+          onClose={() => setShowToast(false)}
+        />
       )}
 
       <div className="flex flex-col items-center gap-4 w-full">
@@ -224,7 +186,7 @@ function IndexComponent() {
                     <div className="flex flex-col gap-2">
                       <Textarea 
                         className={`w-full ${isOverLimit ? 'border-red-500' : ''}`}
-                        placeholder="Enter the debate topic (max 300 characters)"
+                        placeholder={`Enter the debate topic (max ${DEBATE_CONFIG.MAX_TOPIC_LENGTH} characters)`}
                         rows={4}
                         value={field.state.value}
                         onChange={(e) => {
@@ -237,7 +199,7 @@ function IndexComponent() {
                       <div className={`text-sm ${isOverLimit ? 'text-red-500' : 'text-muted-foreground'}`}>
                         {charCount} / {maxChars} characters
                         {isOverLimit && (
-                          <span className="ml-2 font-semibold">Topic is too long. Please shorten it to 300 characters or less.</span>
+                          <span className="ml-2 font-semibold">Topic is too long. Please shorten it to {DEBATE_CONFIG.MAX_TOPIC_LENGTH} characters or less.</span>
                         )}
                       </div>
                     </div>
@@ -324,8 +286,8 @@ function IndexComponent() {
                       <Input
                         id="rounds"
                         type="number"
-                        min="1"
-                        max="5"
+                        min={DEBATE_CONFIG.MIN_ROUNDS.toString()}
+                        max={DEBATE_CONFIG.MAX_ROUNDS.toString()}
                         step="1"
                         value={field.state.value}
                         onChange={(e) => field.handleChange(Number(e.target.value))}
@@ -371,8 +333,9 @@ function IndexComponent() {
 
           <Button 
             type="submit" 
+            variant="primary"
             disabled={!hasApiKey}
-            className="mt-2 bg-[#EE8955] hover:bg-[#FFA366] text-[#1a1a1a] font-semibold px-7 py-3 rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-2 px-7 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Start Debate
           </Button>

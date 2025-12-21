@@ -1,116 +1,15 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { useState, useEffect } from 'react'
+import { EmptyState } from "@/components/ui/empty-state"
+import { useDebates } from '@/hooks/useDebates'
 import { formatDate24Hour, calculateTotalReadingTimeForSide } from '@/lib/utils'
-
-const SAVED_DEBATES_KEY = 'saved_debates'
-
-const MODEL_OPTIONS = [
-  { slug: 'anthropic/claude-sonnet-4.5', name: 'Anthropic: Claude Sonnet 4.5' },
-  { slug: 'deepseek/deepseek-v3.2', name: 'DeepSeek: DeepSeek V3.2' },
-  { slug: 'google/gemini-3-pro-preview', name: 'Google: Gemini 3 Pro' },
-  { slug: 'openai/gpt-5.2', name: 'OpenAI: GPT-5.2' },
-  { slug: 'x-ai/grok-4', name: 'xAI: Grok 4' },
-  { slug: 'mistralai/mistral-medium-3.1', name: 'Mistral: Mistral Medium 3.1' },
-]
-
-interface UsageData {
-  prompt_tokens?: number
-  completion_tokens?: number
-  total_tokens?: number
-  cost?: number
-  cost_details?: {
-    upstream_inference_cost?: number
-    upstream_inference_input_cost?: number
-    upstream_inference_output_cost?: number
-  }
-  completion_tokens_details?: {
-    reasoning_tokens?: number
-  }
-  prompt_tokens_details?: {
-    cached_tokens?: number
-    audio_tokens?: number
-  }
-}
-
-interface SavedDebate {
-  debateId: string
-  topic: string
-  yesModel: string
-  noModel: string
-  rounds: string
-  judgePrompt: string
-  debateRounds: any[]
-  judgeEvaluations: any[]
-  finalResult: any
-  usage?: UsageData
-  timestamp: string
-}
+import { MODEL_OPTIONS } from '@/lib/constants'
+import { cleanString } from '@/lib/debate-utils'
 
 function DebatesComponent() {
   const navigate = useNavigate()
-  const [savedDebates, setSavedDebates] = useState<SavedDebate[]>([])
-
-  // Function to load saved debates
-  const loadSavedDebates = () => {
-    const saved = localStorage.getItem(SAVED_DEBATES_KEY)
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        // Sort by timestamp, most recent first
-        parsed.sort((a: SavedDebate, b: SavedDebate) => 
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        )
-        setSavedDebates(parsed)
-      } catch (e) {
-        console.error('Error loading saved debates:', e)
-        setSavedDebates([])
-      }
-    } else {
-      setSavedDebates([])
-    }
-  }
-
-  // Check localStorage on mount
-  useEffect(() => {
-    loadSavedDebates()
-  }, [])
-
-  // Listen for storage changes to update saved debates
-  useEffect(() => {
-    const handleStorageChange = () => {
-      loadSavedDebates()
-    }
-
-    window.addEventListener('storage', handleStorageChange)
-    // Also check periodically in case of same-tab updates
-    const interval = setInterval(handleStorageChange, 1000)
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange)
-      clearInterval(interval)
-    }
-  }, [])
-
-  // Reload when component becomes visible (user returns to page)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        loadSavedDebates()
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [])
-
-  const deleteDebate = (debateId: string) => {
-    const updated = savedDebates.filter(d => d.debateId !== debateId)
-    setSavedDebates(updated)
-    localStorage.setItem(SAVED_DEBATES_KEY, JSON.stringify(updated))
-  }
+  const { debates: savedDebates, deleteDebate } = useDebates()
 
   const getModelName = (slug: string) => {
     const model = MODEL_OPTIONS.find(m => m.slug === slug)
@@ -165,20 +64,12 @@ function DebatesComponent() {
     <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
       <div className="w-full">
         {savedDebates.length === 0 ? (
-          <Card className="w-full">
-            <CardContent className="pt-6">
-              <div className="text-center py-12">
-                <p className="text-lg text-muted-foreground mb-4">No debates found</p>
-                <p className="text-sm text-muted-foreground mb-6">Start a new debate from the Home page to see it here.</p>
-                <Button
-                  onClick={() => navigate({ to: '/' })}
-                  className="bg-[#EE8955] hover:bg-[#FFA366] text-[#1a1a1a] font-semibold"
-                >
-                  Go to Home
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <EmptyState
+            title="No debates found"
+            description="Start a new debate from the Home page to see it here."
+            actionLabel="Go to Home"
+            actionTo="/"
+          />
         ) : (
           <>
             <div className="mb-6">
@@ -210,14 +101,14 @@ function DebatesComponent() {
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between gap-2">
                         <CardTitle className={`text-lg ${colorScheme.text} line-clamp-2`}>
-                          {debate.topic?.replace(/\*\*/g, '').replace(/^["']+|["']+$/g, '').trim() || 'Untitled Debate'}
+                          {cleanString(debate.topic || 'Untitled Debate')}
                         </CardTitle>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation()
-                            const debateTitle = debate.topic?.replace(/\*\*/g, '').replace(/^["']+|["']+$/g, '').trim() || 'Untitled Debate'
+                            const debateTitle = cleanString(debate.topic || 'Untitled Debate')
                             const confirmed = window.confirm(
                               `Are you sure you want to delete "${debateTitle}"?\n\nThis action cannot be undone.`
                             )

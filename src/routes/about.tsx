@@ -43,7 +43,7 @@ function AboutComponent() {
             <p className="text-base text-foreground leading-relaxed">
               When you provide a debate topic, the system first generates a concise, descriptive title (7-12 words) 
               to make it easier to identify and reference the debate later. This uses a fast, cost-effective model 
-              (<code className="bg-muted px-1.5 py-0.5 rounded text-sm">mistralai/ministral-14b-2512</code>) to quickly 
+              (<code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">mistralai/ministral-14b-2512</code>) to quickly 
               summarize your topic into a clear title.
             </p>
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
@@ -150,9 +150,9 @@ function AboutComponent() {
               Three independent AI judges evaluate the entire debate. The default judge panel consists of:
             </p>
             <ul className="list-disc list-outside space-y-2 ml-6 text-base text-foreground">
-              <li><code className="bg-muted px-1.5 py-0.5 rounded text-sm">openai/gpt-5.2</code></li>
-              <li><code className="bg-muted px-1.5 py-0.5 rounded text-sm">anthropic/claude-sonnet-4.5</code></li>
-              <li><code className="bg-muted px-1.5 py-0.5 rounded text-sm">google/gemini-3-pro-preview</code></li>
+              <li><code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">openai/gpt-5.2</code></li>
+              <li><code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">anthropic/claude-sonnet-4.5</code></li>
+              <li><code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">google/gemini-3-pro-preview</code></li>
             </ul>
             <p className="text-base text-foreground leading-relaxed">
               Each judge receives the complete debate transcript (opening statements, all rebuttal rounds, and conclusions) 

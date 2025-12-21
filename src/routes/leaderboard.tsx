@@ -1,40 +1,11 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from '@/components/ui/button'
+import { EmptyState } from "@/components/ui/empty-state"
 import { useState, useEffect } from 'react'
-
-const SAVED_DEBATES_KEY = 'saved_debates'
-
-const MODEL_OPTIONS = [
-  { slug: 'anthropic/claude-sonnet-4.5', name: 'Anthropic: Claude Sonnet 4.5' },
-  { slug: 'deepseek/deepseek-v3.2', name: 'DeepSeek: DeepSeek V3.2' },
-  { slug: 'google/gemini-3-pro-preview', name: 'Google: Gemini 3 Pro' },
-  { slug: 'openai/gpt-5.2', name: 'OpenAI: GPT-5.2' },
-  { slug: 'x-ai/grok-4', name: 'xAI: Grok 4' },
-  { slug: 'mistralai/mistral-medium-3.1', name: 'Mistral: Mistral Medium 3.1' },
-]
-
-interface UsageData {
-  prompt_tokens?: number
-  completion_tokens?: number
-  total_tokens?: number
-  cost?: number
-}
-
-interface SavedDebate {
-  debateId: string
-  topic: string
-  yesModel: string
-  noModel: string
-  rounds: string
-  judgeEvaluations: any[]
-  finalResult: {
-    winner?: 'yes' | 'no' | 'tie'
-    aggregateScore?: { yes: number; no: number }
-  }
-  usage?: UsageData
-  timestamp: string
-}
+import { useDebates } from '@/hooks/useDebates'
+import { MODEL_OPTIONS } from '@/lib/constants'
+import { cleanString } from '@/lib/debate-utils'
 
 interface ModelStats {
   model: string
@@ -57,7 +28,7 @@ interface TopicStats {
 
 function LeaderboardComponent() {
   const navigate = useNavigate()
-  const [savedDebates, setSavedDebates] = useState<SavedDebate[]>([])
+  const { debates: savedDebates } = useDebates()
   const [modelStats, setModelStats] = useState<ModelStats[]>([])
   const [topicStats, setTopicStats] = useState<TopicStats[]>([])
   const [sortBy, setSortBy] = useState<'winRate' | 'wins' | 'averageScore' | 'totalDebates'>('winRate')
@@ -73,20 +44,21 @@ function LeaderboardComponent() {
     return model ? model.name : slug
   }
 
-  const cleanTopic = (topic: string): string => {
-    return topic?.replace(/\*\*/g, '').replace(/^["']+|["']+$/g, '').trim() || 'Untitled Debate'
-  }
-
   const loadAndProcessDebates = () => {
-    const saved = localStorage.getItem(SAVED_DEBATES_KEY)
-    if (!saved) {
-      setSavedDebates([])
+    if (savedDebates.length === 0) {
+      setModelStats([])
+      setTopicStats([])
+      setTotalStats({
+        totalDebates: 0,
+        totalCost: 0,
+        totalTokens: 0,
+        averageRounds: 0,
+      })
       return
     }
 
     try {
-      const debates: SavedDebate[] = JSON.parse(saved)
-      setSavedDebates(debates)
+      const debates = savedDebates
 
       // Calculate model statistics
       const modelMap = new Map<string, ModelStats>()
@@ -197,7 +169,7 @@ function LeaderboardComponent() {
       // Calculate topic statistics
       const topicMap = new Map<string, number>()
       debates.forEach((debate) => {
-        const topic = cleanTopic(debate.topic)
+        const topic = cleanString(debate.topic || 'Untitled Debate')
         topicMap.set(topic, (topicMap.get(topic) || 0) + 1)
       })
 
@@ -222,44 +194,31 @@ function LeaderboardComponent() {
       })
     } catch (e) {
       console.error('Error loading debates:', e)
-      setSavedDebates([])
+      setModelStats([])
+      setTopicStats([])
+      setTotalStats({
+        totalDebates: 0,
+        totalCost: 0,
+        totalTokens: 0,
+        averageRounds: 0,
+      })
     }
   }
 
   useEffect(() => {
     loadAndProcessDebates()
-    
-    // Listen for storage changes
-    const handleStorageChange = () => {
-      loadAndProcessDebates()
-    }
-    window.addEventListener('storage', handleStorageChange)
-    const interval = setInterval(handleStorageChange, 1000)
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange)
-      clearInterval(interval)
-    }
-  }, [sortBy])
+  }, [savedDebates, sortBy])
 
   if (savedDebates.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
         <div className="w-full">
-          <Card className="w-full">
-            <CardContent className="pt-6">
-              <div className="text-center py-12">
-                <p className="text-lg text-muted-foreground mb-4">No debates found</p>
-                <p className="text-sm text-muted-foreground mb-6">Start a new debate from the Home page to see leaderboards here.</p>
-                <Button
-                  onClick={() => navigate({ to: '/' })}
-                  className="bg-[#EE8955] hover:bg-[#FFA366] text-[#1a1a1a] font-semibold"
-                >
-                  Go to Home
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <EmptyState
+            title="No debates found"
+            description="Start a new debate from the Home page to see leaderboards here."
+            actionLabel="Go to Home"
+            actionTo="/"
+          />
         </div>
       </div>
     )
@@ -414,7 +373,7 @@ function LeaderboardComponent() {
         <div className="flex gap-4 justify-center">
           <Button
             onClick={() => navigate({ to: '/' })}
-            className="bg-[#EE8955] hover:bg-[#FFA366] text-[#1a1a1a] font-semibold"
+            variant="primary"
           >
             Start New Debate
           </Button>
