@@ -910,31 +910,11 @@ function DebateComponent() {
                       </div>
                       <div className="p-4 bg-background/50 rounded-lg border border-border">
                         <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Total Cost</div>
-                        <div className="text-2xl font-bold text-primary">
+                        <div className="text-2xl font-bold text-primary dark:text-yellow-500">
                           ${usage.cost?.toFixed(4) || '0.0000'}
                         </div>
                       </div>
                     </div>
-                    {(usage.completion_tokens_details?.reasoning_tokens || usage.prompt_tokens_details?.cached_tokens) && (
-                      <div className="grid grid-cols-2 gap-4 pt-2">
-                        {usage.completion_tokens_details?.reasoning_tokens && (
-                          <div className="p-3 bg-background/30 rounded-lg border border-border/50">
-                            <div className="text-xs font-semibold text-muted-foreground mb-1">Reasoning Tokens</div>
-                            <div className="text-lg font-semibold text-foreground">
-                              {usage.completion_tokens_details.reasoning_tokens.toLocaleString()}
-                            </div>
-                          </div>
-                        )}
-                        {usage.prompt_tokens_details?.cached_tokens && (
-                          <div className="p-3 bg-background/30 rounded-lg border border-border/50">
-                            <div className="text-xs font-semibold text-muted-foreground mb-1">Cached Tokens</div>
-                            <div className="text-lg font-semibold text-foreground">
-                              {usage.prompt_tokens_details.cached_tokens.toLocaleString()}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </Card>
               )}
