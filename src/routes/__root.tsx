@@ -17,6 +17,15 @@ export const Route = createRootRoute({
               AI Debates
             </Link>
             <Link
+              to="/about"
+              className="text-lg"
+              activeProps={{
+                className: "text-foreground font-semibold"
+              }}
+            >
+              About
+            </Link>
+            <Link
               to="/debates"
               className="text-lg"
               activeProps={{
