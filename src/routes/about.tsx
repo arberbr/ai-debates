@@ -8,13 +8,16 @@ function AboutComponent() {
         {/* Header */}
         <Card className="w-full">
           <CardHeader>
-            <CardTitle className="text-3xl font-bold text-foreground">About</CardTitle>
+            <CardTitle className="text-3xl font-bold text-foreground">About AI Debates</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-lg text-muted-foreground leading-relaxed">
-              AI Debates is a platform that facilitates structured debates between different AI
-              models on any topic. Watch as AI models argue for and against propositions, with
-              multiple AI judges evaluating the quality of arguments and determining a winner.
+              AI Debates is a modern web application that facilitates structured debates between
+              different AI models on any topic. Watch as AI models argue for and against
+              propositions, with multiple AI judges evaluating the quality of arguments and
+              determining a winner. The platform provides real-time updates, comprehensive
+              statistics, and a beautiful user interface for exploring how different AI models
+              approach argumentation and reasoning.
             </p>
           </CardContent>
         </Card>
@@ -475,26 +478,196 @@ function AboutComponent() {
         {/* Architecture */}
         <Card className="w-full">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-foreground">Architecture</CardTitle>
+            <CardTitle className="text-2xl font-bold text-foreground">Technical Architecture</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Frontend</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Frontend Stack</h3>
               <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
-                <li>React 19 with TypeScript</li>
-                <li>TanStack Router for file-based routing</li>
-                <li>Tailwind CSS for styling with dark mode support</li>
-                <li>shadcn/ui components built on Radix UI primitives</li>
-                <li>React Markdown for rendering debate content</li>
+                <li>
+                  <strong>React 19</strong> with TypeScript for type-safe component development
+                </li>
+                <li>
+                  <strong>Vite 7</strong> as the build tool and development server with HMR
+                </li>
+                <li>
+                  <strong>TanStack Router</strong> for file-based routing with type-safe navigation
+                </li>
+                <li>
+                  <strong>TanStack Form</strong> for form state management and validation
+                </li>
+                <li>
+                  <strong>Tailwind CSS</strong> for utility-first styling with dark mode support
+                </li>
+                <li>
+                  <strong>shadcn/ui</strong> components built on Radix UI primitives for
+                  accessible, customizable UI elements
+                </li>
+                <li>
+                  <strong>react-markdown</strong> for rendering debate content with full markdown
+                  support
+                </li>
+                <li>
+                  <strong>Sonner</strong> for toast notifications
+                </li>
+                <li>
+                  <strong>Biome</strong> for linting and code formatting
+                </li>
               </ul>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Backend</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">State Management</h3>
               <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
-                <li>NestJS framework (Node.js)</li>
-                <li>OpenRouter API integration for LLM access</li>
-                <li>Server-Sent Events (SSE) for real-time streaming</li>
-                <li>Parallel API calls where possible for efficiency</li>
+                <li>
+                  React hooks (<code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useState</code>,{" "}
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useEffect</code>) for local component state
+                </li>
+                <li>
+                  Custom hooks (<code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useApiKey</code>,{" "}
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebates</code>) for shared state logic
+                </li>
+                <li>
+                  <strong>localStorage</strong> for persistent data storage (API keys, debates)
+                </li>
+                <li>
+                  Cross-tab synchronization via Storage API events
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Backend Integration</h3>
+              <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
+                <li>
+                  <strong>NestJS</strong> framework (Node.js) for the backend API
+                </li>
+                <li>
+                  <strong>OpenRouter API</strong> integration for unified LLM access across
+                  multiple providers
+                </li>
+                <li>
+                  <strong>Server-Sent Events (SSE)</strong> for real-time streaming of debate
+                  progress
+                </li>
+                <li>
+                  Parallel API calls where possible for efficiency (opening statements, rebuttals,
+                  conclusions)
+                </li>
+                <li>
+                  Exponential backoff retry logic for resilient API calls
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Key Features & Patterns</h3>
+              <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
+                <li>
+                  <strong>Error Boundary</strong> component for graceful error handling
+                </li>
+                <li>
+                  <strong>AbortController</strong> for request cancellation on component unmount
+                </li>
+                <li>
+                  <strong>Reading time calculations</strong> based on word count (200 words/minute)
+                </li>
+                <li>
+                  <strong>Markdown stripping</strong> utilities for accurate word counting
+                </li>
+                <li>
+                  <strong>Type-safe routing</strong> with TanStack Router's type inference
+                </li>
+                <li>
+                  <strong>Responsive design</strong> with mobile-first Tailwind CSS approach
+                </li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Component Structure */}
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-foreground">Component Architecture</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Layout Components</h3>
+              <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">Navbar</code> - Top
+                  navigation bar with links to all major pages
+                </li>
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">ErrorBoundary</code> -
+                  React error boundary for graceful error handling and recovery
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Debate Components</h3>
+              <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">DebateContent</code> -
+                  Main container displaying opening statements, rounds, and conclusions
+                </li>
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">DebateMessageCard</code> -
+                  Individual message cards for FOR/AGAINST sides with model info and reading time
+                </li>
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">FinalResultCard</code> -
+                  Displays final winner and aggregate scores
+                </li>
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">JudgeEvaluationCard</code> -
+                  Shows individual judge evaluations with scores and reasoning
+                </li>
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">UsageStatsCard</code> -
+                  Token usage and cost statistics display
+                </li>
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">MarkdownContent</code> -
+                  Custom markdown renderer with styled components
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Custom Hooks</h3>
+              <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useApiKey</code> -
+                  Manages OpenRouter API key storage and retrieval from localStorage
+                </li>
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebates</code> -
+                  Manages saved debates with CRUD operations, cross-tab sync, and localStorage
+                  persistence
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Route Pages</h3>
+              <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">index.tsx</code> - Home
+                  page with debate creation form using TanStack Form
+                </li>
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">debate.$debateId.tsx</code> -
+                  Debate viewing page with SSE streaming, real-time updates, and debate persistence
+                </li>
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">debates.tsx</code> -
+                  Debates list page with color-coded cards and deletion functionality
+                </li>
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">leaderboard.tsx</code> -
+                  Statistics page with model performance metrics and topic analytics
+                </li>
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">about.tsx</code> - This
+                  page with comprehensive documentation
+                </li>
               </ul>
             </div>
           </CardContent>
