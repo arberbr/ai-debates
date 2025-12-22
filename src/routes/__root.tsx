@@ -1,53 +1,15 @@
-import { createRootRoute, Outlet, Link } from '@tanstack/react-router'
-import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
+import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { Navbar } from "@/components/layout/Navbar";
+import { Toast } from "@/components/ui/toast";
 
 export const Route = createRootRoute({
   component: () => (
     <>
-      <nav className="w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-center gap-6">
-            <Link
-              to="/"
-              className="text-lg"
-              activeProps={{
-                className: "text-foreground font-semibold"
-              }}
-            >
-              AI Debates
-            </Link>
-            <Link
-              to="/about"
-              className="text-lg"
-              activeProps={{
-                className: "text-foreground font-semibold"
-              }}
-            >
-              About
-            </Link>
-            <Link
-              to="/debates"
-              className="text-lg"
-              activeProps={{
-                className: "text-foreground font-semibold"
-              }}
-            >
-              Debates
-            </Link>
-            <Link
-              to="/leaderboard"
-              className="text-lg"
-              activeProps={{
-                className: "text-foreground font-semibold"
-              }}
-            >
-              Leaderboard
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
       <Outlet />
       <TanStackRouterDevtools />
+      <Toast />
     </>
   ),
-})
+});

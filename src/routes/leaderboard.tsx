@@ -1,75 +1,77 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from '@/components/ui/button'
-import { EmptyState } from "@/components/ui/empty-state"
-import { useState, useEffect } from 'react'
-import { useDebates } from '@/hooks/useDebates'
-import { MODEL_OPTIONS } from '@/lib/constants'
-import { cleanString } from '@/lib/debate-utils'
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useCallback, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useDebates } from "@/hooks/useDebates";
+import { MODEL_OPTIONS } from "@/lib/constants";
+import { cleanString } from "@/lib/debate-utils";
 
 interface ModelStats {
-  model: string
-  modelName: string
-  wins: number
-  losses: number
-  ties: number
-  totalDebates: number
-  winRate: number
-  averageScore: number
-  totalTokens: number
-  totalCost: number
-  averageCost: number
+  model: string;
+  modelName: string;
+  wins: number;
+  losses: number;
+  ties: number;
+  totalDebates: number;
+  winRate: number;
+  averageScore: number;
+  totalTokens: number;
+  totalCost: number;
+  averageCost: number;
 }
 
 interface TopicStats {
-  topic: string
-  count: number
+  topic: string;
+  count: number;
 }
 
+const getModelName = (slug: string) => {
+  const model = MODEL_OPTIONS.find((m) => m.slug === slug);
+  return model ? model.name : slug;
+};
+
 function LeaderboardComponent() {
-  const navigate = useNavigate()
-  const { debates: savedDebates } = useDebates()
-  const [modelStats, setModelStats] = useState<ModelStats[]>([])
-  const [topicStats, setTopicStats] = useState<TopicStats[]>([])
-  const [sortBy, setSortBy] = useState<'winRate' | 'wins' | 'averageScore' | 'totalDebates'>('winRate')
+  const navigate = useNavigate();
+  const { debates: savedDebates } = useDebates();
+  const [modelStats, setModelStats] = useState<ModelStats[]>([]);
+  const [topicStats, setTopicStats] = useState<TopicStats[]>([]);
+  const [sortBy, setSortBy] = useState<"winRate" | "wins" | "averageScore" | "totalDebates">(
+    "winRate"
+  );
   const [totalStats, setTotalStats] = useState({
     totalDebates: 0,
     totalCost: 0,
     totalTokens: 0,
     averageRounds: 0,
-  })
+  });
 
-  const getModelName = (slug: string) => {
-    const model = MODEL_OPTIONS.find(m => m.slug === slug)
-    return model ? model.name : slug
-  }
-
-  const loadAndProcessDebates = () => {
+  const loadAndProcessDebates = useCallback(() => {
     if (savedDebates.length === 0) {
-      setModelStats([])
-      setTopicStats([])
+      setModelStats([]);
+      setTopicStats([]);
       setTotalStats({
         totalDebates: 0,
         totalCost: 0,
         totalTokens: 0,
         averageRounds: 0,
-      })
-      return
+      });
+      return;
     }
 
     try {
-      const debates = savedDebates
+      const debates = savedDebates;
 
       // Calculate model statistics
-      const modelMap = new Map<string, ModelStats>()
+      const modelMap = new Map<string, ModelStats>();
 
       debates.forEach((debate) => {
-        if (!debate.finalResult || !debate.yesModel || !debate.noModel) return
+        if (!debate.finalResult || !debate.yesModel || !debate.noModel) return;
 
-        const yesModel = debate.yesModel
-        const noModel = debate.noModel
-        const winner = debate.finalResult.winner
-        const aggregateScore = debate.finalResult.aggregateScore
+        const yesModel = debate.yesModel;
+        const noModel = debate.noModel;
+        const winner = debate.finalResult.winner;
+        const aggregateScore = debate.finalResult.aggregateScore;
 
         // Process YES model
         if (!modelMap.has(yesModel)) {
@@ -85,21 +87,24 @@ function LeaderboardComponent() {
             totalTokens: 0,
             totalCost: 0,
             averageCost: 0,
-          })
+          });
         }
-        const yesStats = modelMap.get(yesModel)!
-        yesStats.totalDebates++
-        if (winner === 'yes') yesStats.wins++
-        else if (winner === 'no') yesStats.losses++
-        else if (winner === 'tie') yesStats.ties++
+        const yesStats = modelMap.get(yesModel);
+        if (!yesStats) return;
+        yesStats.totalDebates++;
+        if (winner === "yes") yesStats.wins++;
+        else if (winner === "no") yesStats.losses++;
+        else if (winner === "tie") yesStats.ties++;
         if (aggregateScore?.yes) {
-          yesStats.averageScore = (yesStats.averageScore * (yesStats.totalDebates - 1) + aggregateScore.yes) / yesStats.totalDebates
+          yesStats.averageScore =
+            (yesStats.averageScore * (yesStats.totalDebates - 1) + aggregateScore.yes) /
+            yesStats.totalDebates;
         }
         if (debate.usage?.total_tokens) {
-          yesStats.totalTokens += debate.usage.total_tokens
+          yesStats.totalTokens += debate.usage.total_tokens;
         }
         if (debate.usage?.cost) {
-          yesStats.totalCost += debate.usage.cost
+          yesStats.totalCost += debate.usage.cost;
         }
 
         // Process NO model
@@ -116,98 +121,100 @@ function LeaderboardComponent() {
             totalTokens: 0,
             totalCost: 0,
             averageCost: 0,
-          })
+          });
         }
-        const noStats = modelMap.get(noModel)!
-        noStats.totalDebates++
-        if (winner === 'no') noStats.wins++
-        else if (winner === 'yes') noStats.losses++
-        else if (winner === 'tie') noStats.ties++
+        const noStats = modelMap.get(noModel);
+        if (!noStats) return;
+        noStats.totalDebates++;
+        if (winner === "no") noStats.wins++;
+        else if (winner === "yes") noStats.losses++;
+        else if (winner === "tie") noStats.ties++;
         if (aggregateScore?.no) {
-          noStats.averageScore = (noStats.averageScore * (noStats.totalDebates - 1) + aggregateScore.no) / noStats.totalDebates
+          noStats.averageScore =
+            (noStats.averageScore * (noStats.totalDebates - 1) + aggregateScore.no) /
+            noStats.totalDebates;
         }
         if (debate.usage?.total_tokens) {
-          noStats.totalTokens += debate.usage.total_tokens
+          noStats.totalTokens += debate.usage.total_tokens;
         }
         if (debate.usage?.cost) {
-          noStats.totalCost += debate.usage.cost
+          noStats.totalCost += debate.usage.cost;
         }
-      })
+      });
 
       // Calculate win rates and average costs
       const statsArray = Array.from(modelMap.values()).map((stats) => {
-        const winRate = stats.totalDebates > 0
-          ? ((stats.wins + stats.ties * 0.5) / stats.totalDebates) * 100
-          : 0
-        const averageCost = stats.totalDebates > 0 ? stats.totalCost / stats.totalDebates : 0
+        const winRate =
+          stats.totalDebates > 0 ? ((stats.wins + stats.ties * 0.5) / stats.totalDebates) * 100 : 0;
+        const averageCost = stats.totalDebates > 0 ? stats.totalCost / stats.totalDebates : 0;
         return {
           ...stats,
           winRate: Math.round(winRate * 100) / 100,
           averageScore: Math.round(stats.averageScore * 100) / 100,
           averageCost: Math.round(averageCost * 10000) / 10000,
-        }
-      })
+        };
+      });
 
       // Sort by selected metric
       statsArray.sort((a, b) => {
         switch (sortBy) {
-          case 'winRate':
-            return b.winRate - a.winRate
-          case 'wins':
-            return b.wins - a.wins
-          case 'averageScore':
-            return b.averageScore - a.averageScore
-          case 'totalDebates':
-            return b.totalDebates - a.totalDebates
+          case "winRate":
+            return b.winRate - a.winRate;
+          case "wins":
+            return b.wins - a.wins;
+          case "averageScore":
+            return b.averageScore - a.averageScore;
+          case "totalDebates":
+            return b.totalDebates - a.totalDebates;
           default:
-            return 0
+            return 0;
         }
-      })
+      });
 
-      setModelStats(statsArray)
+      setModelStats(statsArray);
 
       // Calculate topic statistics
-      const topicMap = new Map<string, number>()
+      const topicMap = new Map<string, number>();
       debates.forEach((debate) => {
-        const topic = cleanString(debate.topic || 'Untitled Debate')
-        topicMap.set(topic, (topicMap.get(topic) || 0) + 1)
-      })
+        const topic = cleanString(debate.topic || "Untitled Debate");
+        topicMap.set(topic, (topicMap.get(topic) || 0) + 1);
+      });
 
       const topics = Array.from(topicMap.entries())
         .map(([topic, count]) => ({ topic, count }))
         .sort((a, b) => b.count - a.count)
-        .slice(0, 10) // Top 10 topics
+        .slice(0, 10); // Top 10 topics
 
-      setTopicStats(topics)
+      setTopicStats(topics);
 
       // Calculate total statistics
-      const totalCost = debates.reduce((sum, d) => sum + (d.usage?.cost || 0), 0)
-      const totalTokens = debates.reduce((sum, d) => sum + (d.usage?.total_tokens || 0), 0)
-      const totalRounds = debates.reduce((sum, d) => sum + (parseInt(d.rounds) || 0), 0)
-      const avgRounds = debates.length > 0 ? totalRounds / debates.length : 0
+      const totalCost = debates.reduce((sum, d) => sum + (d.usage?.cost || 0), 0);
+      const totalTokens = debates.reduce((sum, d) => sum + (d.usage?.total_tokens || 0), 0);
+      const totalRounds = debates.reduce((sum, d) => sum + (parseInt(d.rounds, 10) || 0), 0);
+      const avgRounds = debates.length > 0 ? totalRounds / debates.length : 0;
 
       setTotalStats({
         totalDebates: debates.length,
         totalCost: Math.round(totalCost * 10000) / 10000,
         totalTokens,
         averageRounds: Math.round(avgRounds * 100) / 100,
-      })
+      });
     } catch (e) {
-      console.error('Error loading debates:', e)
-      setModelStats([])
-      setTopicStats([])
+      console.error("Error loading debates:", e);
+      setModelStats([]);
+      setTopicStats([]);
       setTotalStats({
         totalDebates: 0,
         totalCost: 0,
         totalTokens: 0,
         averageRounds: 0,
-      })
+      });
     }
-  }
+  }, [savedDebates, sortBy]);
 
   useEffect(() => {
-    loadAndProcessDebates()
-  }, [savedDebates, sortBy])
+    loadAndProcessDebates();
+  }, [loadAndProcessDebates]);
 
   if (savedDebates.length === 0) {
     return (
@@ -221,7 +228,7 @@ function LeaderboardComponent() {
           />
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -230,7 +237,10 @@ function LeaderboardComponent() {
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-foreground mb-2">Leaderboards</h1>
-          <p className="text-muted-foreground">Statistics from {totalStats.totalDebates} debate{totalStats.totalDebates !== 1 ? 's' : ''}</p>
+          <p className="text-muted-foreground">
+            Statistics from {totalStats.totalDebates} debate
+            {totalStats.totalDebates !== 1 ? "s" : ""}
+          </p>
         </div>
 
         {/* Total Statistics */}
@@ -267,30 +277,30 @@ function LeaderboardComponent() {
               <CardTitle>Model Performance</CardTitle>
               <div className="flex gap-2">
                 <Button
-                  variant={sortBy === 'winRate' ? 'default' : 'outline'}
+                  variant={sortBy === "winRate" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setSortBy('winRate')}
+                  onClick={() => setSortBy("winRate")}
                 >
                   Win Rate
                 </Button>
                 <Button
-                  variant={sortBy === 'wins' ? 'default' : 'outline'}
+                  variant={sortBy === "wins" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setSortBy('wins')}
+                  onClick={() => setSortBy("wins")}
                 >
                   Wins
                 </Button>
                 <Button
-                  variant={sortBy === 'averageScore' ? 'default' : 'outline'}
+                  variant={sortBy === "averageScore" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setSortBy('averageScore')}
+                  onClick={() => setSortBy("averageScore")}
                 >
                   Avg Score
                 </Button>
                 <Button
-                  variant={sortBy === 'totalDebates' ? 'default' : 'outline'}
+                  variant={sortBy === "totalDebates" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setSortBy('totalDebates')}
+                  onClick={() => setSortBy("totalDebates")}
                 >
                   Debates
                 </Button>
@@ -299,7 +309,9 @@ function LeaderboardComponent() {
           </CardHeader>
           <CardContent>
             {modelStats.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">No model statistics available</p>
+              <p className="text-muted-foreground text-center py-8">
+                No model statistics available
+              </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -318,7 +330,10 @@ function LeaderboardComponent() {
                   </thead>
                   <tbody>
                     {modelStats.map((stats, index) => (
-                      <tr key={stats.model} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                      <tr
+                        key={stats.model}
+                        className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                      >
                         <td className="p-3">
                           <div className="flex items-center gap-2">
                             {index === 0 && <span className="text-yellow-500">🥇</span>}
@@ -328,11 +343,21 @@ function LeaderboardComponent() {
                           </div>
                         </td>
                         <td className="p-3 font-medium">{stats.modelName}</td>
-                        <td className="p-3 text-center text-green-600 dark:text-green-400 font-semibold">{stats.wins}</td>
-                        <td className="p-3 text-center text-red-600 dark:text-red-400 font-semibold">{stats.losses}</td>
-                        <td className="p-3 text-center text-yellow-600 dark:text-yellow-400 font-semibold">{stats.ties}</td>
-                        <td className="p-3 text-center font-semibold">{stats.winRate.toFixed(1)}%</td>
-                        <td className="p-3 text-center">{stats.averageScore > 0 ? stats.averageScore.toFixed(1) : 'N/A'}</td>
+                        <td className="p-3 text-center text-green-600 dark:text-green-400 font-semibold">
+                          {stats.wins}
+                        </td>
+                        <td className="p-3 text-center text-red-600 dark:text-red-400 font-semibold">
+                          {stats.losses}
+                        </td>
+                        <td className="p-3 text-center text-yellow-600 dark:text-yellow-400 font-semibold">
+                          {stats.ties}
+                        </td>
+                        <td className="p-3 text-center font-semibold">
+                          {stats.winRate.toFixed(1)}%
+                        </td>
+                        <td className="p-3 text-center">
+                          {stats.averageScore > 0 ? stats.averageScore.toFixed(1) : "N/A"}
+                        </td>
                         <td className="p-3 text-center">{stats.totalDebates}</td>
                         <td className="p-3 text-center text-sm">${stats.averageCost.toFixed(4)}</td>
                       </tr>
@@ -352,16 +377,20 @@ function LeaderboardComponent() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {topicStats.map((topic, index) => (
+                {topicStats.map((topicStat, index) => (
                   <div
-                    key={index}
+                    key={`${topicStat.topic}-${index}`}
                     className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-lg font-bold text-muted-foreground w-8">#{index + 1}</span>
-                      <span className="font-medium">{topic.topic}</span>
+                      <span className="text-lg font-bold text-muted-foreground w-8">
+                        #{index + 1}
+                      </span>
+                      <span className="font-medium">{topicStat.topic}</span>
                     </div>
-                    <span className="text-sm text-muted-foreground font-semibold">{topic.count} debate{topic.count !== 1 ? 's' : ''}</span>
+                    <span className="text-sm text-muted-foreground font-semibold">
+                      {topicStat.count} debate{topicStat.count !== 1 ? "s" : ""}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -371,25 +400,18 @@ function LeaderboardComponent() {
 
         {/* Actions */}
         <div className="flex gap-4 justify-center">
-          <Button
-            onClick={() => navigate({ to: '/' })}
-            variant="primary"
-          >
+          <Button onClick={() => navigate({ to: "/" })} variant="primary">
             Start New Debate
           </Button>
-          <Button
-            onClick={() => navigate({ to: '/debates' })}
-            variant="outline"
-          >
+          <Button onClick={() => navigate({ to: "/debates" })} variant="outline">
             View All Debates
           </Button>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export const Route = createFileRoute('/leaderboard')({
+export const Route = createFileRoute("/leaderboard")({
   component: LeaderboardComponent,
-})
-
+});

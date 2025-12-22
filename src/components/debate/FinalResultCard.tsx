@@ -1,16 +1,16 @@
-import type { FinalResult } from '@/lib/types'
-import { Card } from '@/components/ui/card'
+import { Card } from "@/components/ui/card";
+import type { FinalResult } from "@/lib/types";
 
 interface FinalResultCardProps {
-  finalResult: FinalResult
+  finalResult: FinalResult;
 }
 
 export const FinalResultCard = ({ finalResult }: FinalResultCardProps) => {
   const winnerColor = {
-    yes: 'bg-blue-500/20 text-blue-700 dark:text-blue-400',
-    no: 'bg-red-500/20 text-red-700 dark:text-red-400',
-    tie: 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400',
-  }[finalResult.winner || 'tie']
+    yes: "bg-blue-500/20 text-blue-700 dark:text-blue-400",
+    no: "bg-red-500/20 text-red-700 dark:text-red-400",
+    tie: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400",
+  }[finalResult.winner || "tie"];
 
   return (
     <Card className="p-6 bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 border-2 border-primary/30 shadow-lg mt-8">
@@ -19,7 +19,7 @@ export const FinalResultCard = ({ finalResult }: FinalResultCardProps) => {
         <div className="flex items-center gap-3">
           <span className="text-base font-semibold text-foreground/80">Winner:</span>
           <div className={`px-5 py-2 rounded-lg font-bold text-lg ${winnerColor}`}>
-            {finalResult.winner?.toUpperCase() || 'TIE'}
+            {finalResult.winner?.toUpperCase() || "TIE"}
           </div>
         </div>
         {finalResult.aggregateScore && (
@@ -41,6 +41,5 @@ export const FinalResultCard = ({ finalResult }: FinalResultCardProps) => {
         )}
       </div>
     </Card>
-  )
-}
-
+  );
+};

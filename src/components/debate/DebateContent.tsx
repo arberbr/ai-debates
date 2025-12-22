@@ -1,12 +1,12 @@
-import type { OpeningStatements, DebateRound, Conclusions } from '@/lib/types'
-import { DebateMessageCard } from './DebateMessageCard'
+import type { Conclusions, DebateRound, OpeningStatements } from "@/lib/types";
+import { DebateMessageCard } from "./DebateMessageCard";
 
 interface DebateContentProps {
-  openingStatements?: OpeningStatements | null
-  debateRounds: DebateRound[]
-  conclusions?: Conclusions | null
-  status: string
-  error: string | null
+  openingStatements?: OpeningStatements | null;
+  debateRounds: DebateRound[];
+  conclusions?: Conclusions | null;
+  status: string;
+  error: string | null;
 }
 
 export const DebateContent = ({
@@ -21,7 +21,7 @@ export const DebateContent = ({
       {!openingStatements && debateRounds.length === 0 && !conclusions && !error && (
         <div className="flex items-center justify-center h-full min-h-[300px]">
           <p className="text-center text-muted-foreground text-lg">
-            {status || 'Waiting for debate to start...'}
+            {status || "Waiting for debate to start..."}
           </p>
         </div>
       )}
@@ -42,8 +42,11 @@ export const DebateContent = ({
       )}
 
       {/* Rebuttal Rounds */}
-      {debateRounds.map((round, idx) => (
-        <div key={idx} className="space-y-4 border-b border-border/50 pb-6 last:border-b-0 last:pb-0">
+      {debateRounds.map((round) => (
+        <div
+          key={round.round}
+          className="space-y-4 border-b border-border/50 pb-6 last:border-b-0 last:pb-0"
+        >
           <div className="flex items-center gap-2">
             <div className="px-3 py-1 bg-primary/10 text-primary font-semibold rounded-full text-sm">
               Round {round.round}
@@ -71,6 +74,5 @@ export const DebateContent = ({
         </div>
       )}
     </div>
-  )
-}
-
+  );
+};

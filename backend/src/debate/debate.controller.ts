@@ -143,7 +143,7 @@ export class DebateController {
     debateId: string,
     res: Response,
   ): Promise<void> {
-    const { topic, yesModel, noModel, rounds, judgePrompt, api_key } = dto;
+    const { topic, yesModel, noModel, rounds, judgePrompt, title, api_key } = dto;
 
     // Normalize api_key
     const normalizedApiKey = api_key && api_key.trim() ? api_key.trim() : null;
@@ -178,55 +178,10 @@ export class DebateController {
     };
 
     try {
-      // Stage 1: Generate title (first step)
-      this.sendSSEEvent(res, {
-        type: 'title_generation_start',
-        stage: 'title_generation_start',
-        message: 'Generating debate title...',
-        debateId,
-        timestamp: new Date().toISOString(),
-      });
+      // Use provided title or generate fallback from topic
+      const debateTitle = dto.title?.trim() || originalTopic.split('\n')[0].substring(0, 80).trim();
 
-      let debateTitle: string;
-      try {
-        debateTitle = await this.debateService.generateTitle(
-          originalTopic,
-          normalizedApiKey,
-          (status) => {
-            this.sendSSEEvent(res, {
-              type: 'status_update',
-              stage: 'title_generation_start',
-              message: status,
-              debateId,
-              timestamp: new Date().toISOString(),
-            });
-          },
-          usageAccumulator,
-        );
-
-        this.sendSSEEvent(res, {
-          type: 'title_generation_complete',
-          stage: 'title_generation_complete',
-          data: { title: debateTitle },
-          message: 'Title generated successfully',
-          debateId,
-          timestamp: new Date().toISOString(),
-        });
-      } catch (titleError: any) {
-        const errorMessage = titleError.message || 'Unknown error occurred during title generation';
-        this.logger.error(`Title generation failed: ${errorMessage}`);
-        // Use fallback title
-        debateTitle = originalTopic.split('\n')[0].substring(0, 80).trim();
-        this.sendSSEEvent(res, {
-          type: 'status_update',
-          stage: 'title_generation_start',
-          message: `Title generation failed, using fallback: ${errorMessage}`,
-          debateId,
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      // Stage 2: Generate opening statements
+      // Stage 1: Generate opening statements
       this.sendSSEEvent(res, {
         type: 'opening_statements_start',
         stage: 'opening_statements_start',

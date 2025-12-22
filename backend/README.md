@@ -97,6 +97,7 @@ Start a new debate. Returns a Server-Sent Events (SSE) stream.
 - `noModel` (string, required): OpenRouter model ID for the "AGAINST" side
 - `rounds` (number, required): Number of debate rounds (1-5)
 - `judgePrompt` (string, optional): Custom instructions for judges
+- `title` (string, optional): Pre-generated title for the debate (if not provided, frontend generates fallback)
 - `api_key` (string, optional): OpenRouter API key for this request (falls back to `OPENROUTER_API_KEY` env var)
 
 **Response:** SSE stream with events:
@@ -104,21 +105,21 @@ Start a new debate. Returns a Server-Sent Events (SSE) stream.
 ```text
 data: {"type":"stream_start","stage":"stream_start","message":"Debate stream initialized",...}
 
-data: {"type":"topic_rewrite_start","stage":"topic_rewrite_start","message":"Analyzing and rewriting topic...",...}
+data: {"type":"opening_statements_start","stage":"opening_statements_start","message":"Generating opening statements...",...}
 
-data: {"type":"topic_rewrite_complete","stage":"topic_rewrite_complete","data":{"rewrittenTopic":"..."},...}
+data: {"type":"opening_statements_complete","stage":"opening_statements_complete","data":{"yesStatement":{...},"noStatement":{...}},...}
 
-data: {"type":"analysis_start","stage":"analysis_start","message":"Analyzing topic with debate participants...",...}
+data: {"type":"rebuttals_start","stage":"rebuttals_start","message":"Starting rebuttal rounds...",...}
 
-data: {"type":"analysis_complete","stage":"analysis_complete","data":{"yesAnalysis":"...","noAnalysis":"..."},...}
+data: {"type":"rebuttal_round_start","stage":"rebuttal_round_start","data":{"round":1},...}
 
-data: {"type":"debate_start","stage":"debate_start","message":"Starting debate rounds...",...}
+data: {"type":"rebuttal_round_complete","stage":"rebuttal_round_complete","data":{"round":1,"yesMessage":{...},"noMessage":{...}},...}
 
-data: {"type":"round_start","stage":"round_start","data":{"round":1},...}
+data: {"type":"rebuttals_complete","stage":"rebuttals_complete","data":{"rounds":[...]},...}
 
-data: {"type":"round_complete","stage":"round_complete","data":{"round":1,"yesMessage":{...},"noMessage":{...}},...}
+data: {"type":"conclusions_start","stage":"conclusions_start","message":"Generating conclusions...",...}
 
-data: {"type":"debate_complete","stage":"debate_complete","data":{"rounds":[...]},...}
+data: {"type":"conclusions_complete","stage":"conclusions_complete","data":{"yesConclusion":{...},"noConclusion":{...}},...}
 
 data: {"type":"judging_start","stage":"judging_start","message":"Judges evaluating debate...",...}
 
@@ -130,6 +131,14 @@ data: {"type":"complete","stage":"complete","data":{...},"message":"Debate proce
 ```
 
 **Note:** The `complete` event includes the full debate data including usage statistics (tokens and cost).
+
+**Status Update Events:**
+
+During long-running operations, you may also receive intermediate `status_update` events:
+
+```text
+data: {"type":"status_update","stage":"opening_statements_start","message":"Querying model...",...}
+```
 
 **Error Events:**
 
@@ -159,7 +168,7 @@ Generate a concise title (7-12 words) for a debate topic. Uses `mistralai/minist
 }
 ```
 
-**Note:** Title generation is optional. If it fails, the frontend uses a fallback (first 80 characters of the topic).
+**Note:** Title generation is optional. The frontend can provide a pre-generated `title` in the request body. If title generation fails or is not provided, the backend uses a fallback (first 80 characters of the topic).
 
 ### GET `/status/:debateId`
 
@@ -177,22 +186,28 @@ Get the last known status for a debate (if tracked).
 
 ## Debate Process Flow
 
+The debate process follows these stages in order:
+
 1. **Opening Statements**
    - Both debate models generate opening statements in parallel
    - Each model presents their position (FOR/AGAINST) and main arguments
-   - Target length: 1000-2000 words (approximately 5-10 minutes reading time)
+   - Target length: 1000-2000 words (approximately 5-10 minutes reading time at 200 words per minute)
+   - Timeout: 180 seconds per model
 
 2. **Rebuttal Rounds**
    - Models engage in structured rounds (1-5 rounds, user-configurable)
    - Each round includes responses from both sides in parallel
-   - Models have access to full debate history (previous rounds)
-   - Focus on rebutting opponent's arguments from previous round
+   - Round 1: Models analyze and rebut the opponent's opening statement
+   - Subsequent rounds: Models focus on the opponent's arguments from the previous round
+   - Models have access to full debate history (opening statements and all previous rounds)
+   - Timeout: 180 seconds per model per round
 
 3. **Conclusions**
    - Both models deliver concluding statements in parallel
    - Each model summarizes their position and final arguments
-   - Target length: 400-1000 words (approximately 2-5 minutes reading time)
-   - Models have access to complete debate transcript
+   - Target length: 400-1000 words (approximately 2-5 minutes reading time at 200 words per minute)
+   - Models have access to complete debate transcript (opening statements, all rebuttal rounds)
+   - Timeout: 180 seconds per model
 
 4. **Judge Evaluation**
    - Three judges evaluate independently:
@@ -200,9 +215,10 @@ Get the last known status for a debate (if tracked).
      - `anthropic/claude-sonnet-4.5`
      - `google/gemini-3-pro-preview`
    - Each judge receives the complete debate transcript
-   - Judges evaluate based on: main points, presentation quality, defense quality, and custom criteria
+   - Judges evaluate based on: main points, presentation quality, defense quality, and custom criteria (from `judgePrompt`)
    - Each judge provides scores (0-100) and reasoning
    - Judges continue even if one fails (resilient design)
+   - Timeout: 120 seconds per judge
 
 5. **Final Result Calculation**
    - Aggregate scores from all judges
@@ -217,18 +233,20 @@ backend/
 ├── src/
 │   ├── common/
 │   │   ├── config.ts              # Default model configurations
-│   │   └── openrouter.service.ts  # OpenRouter API client
+│   │   ├── openrouter.service.ts  # OpenRouter API client
+│   │   └── utils.ts               # Utility functions (string cleaning, etc.)
 │   ├── debate/
-│   │   ├── debate.controller.ts   # HTTP endpoints
+│   │   ├── debate.controller.ts   # HTTP endpoints and SSE streaming
 │   │   ├── debate.service.ts      # Debate orchestration logic
-│   │   ├── debate-status.service.ts  # Status tracking
+│   │   ├── debate-status.service.ts  # Status tracking (in-memory)
 │   │   ├── debate.module.ts        # NestJS module
 │   │   ├── dto/
 │   │   │   └── start-debate.dto.ts # Request DTOs
 │   │   └── interfaces/
 │   │       └── debate.interface.ts # TypeScript interfaces
 │   ├── app.module.ts              # Root module
-│   └── main.ts                    # Application entry point
+│   └── main.ts                    # Application entry point (CORS, port config)
+├── dist/                          # Compiled JavaScript (generated)
 ├── package.json
 ├── tsconfig.json
 └── nest-cli.json
@@ -238,14 +256,18 @@ backend/
 
 The backend supports any model available on OpenRouter. Common models include:
 
-- `openai/gpt-5.2` - OpenAI GPT-5.2
+- `anthropic/claude-haiku-4.5` - Anthropic Claude Haiku 4.5
 - `anthropic/claude-sonnet-4.5` - Anthropic Claude Sonnet 4.5
-- `google/gemini-3-pro-preview` - Google Gemini 3 Pro
 - `deepseek/deepseek-v3.2` - DeepSeek V3.2
+- `google/gemini-3-flash-preview` - Google Gemini 3 Flash Preview
+- `google/gemini-3-pro-preview` - Google Gemini 3 Pro Preview
+- `openai/gpt-5.2` - OpenAI GPT-5.2
 - `x-ai/grok-4` - xAI Grok 4
 - `mistralai/mistral-medium-3.1` - Mistral Medium 3.1
 
-See [OpenRouter Models](https://openrouter.ai/models) for the full list.
+**Note:** Title generation uses `mistralai/ministral-14b-2512` (fast, cost-effective model).
+
+See [OpenRouter Models](https://openrouter.ai/models) for the full list of available models.
 
 ## Development Scripts
 
@@ -314,10 +336,41 @@ The backend uses NestJS's built-in Logger:
 ## Performance Considerations
 
 - **Parallel Processing**: Opening statements, rebuttal rounds, conclusions, and judge evaluations use parallel API calls where possible for efficiency
-- **Timeouts**: Default timeout is 120 seconds per model query (30 seconds for title generation)
+- **Timeouts**: 
+  - Default timeout: 120 seconds per model query
+  - Opening statements, rebuttals, conclusions: 180 seconds (longer responses)
+  - Title generation: 10 seconds (fast, small model)
+  - Judge evaluations: 120 seconds
 - **Streaming**: SSE allows clients to receive updates without polling
 - **Error Recovery**: Individual failures don't stop the entire debate process (e.g., if one judge fails, others continue)
-- **Usage Tracking**: Token usage and costs are tracked and accumulated across all API calls for each debate
+- **Usage Tracking**: Token usage and costs are tracked and accumulated across all API calls for each debate, including detailed cost breakdowns (input/output costs, reasoning tokens, cached tokens, etc.)
+
+## Usage Data Structure
+
+The `usage` object in the complete event includes comprehensive tracking:
+
+```typescript
+{
+  prompt_tokens: number;           // Total prompt tokens used
+  completion_tokens: number;       // Total completion tokens used
+  total_tokens: number;            // Total tokens (prompt + completion)
+  cost: number;                    // Total cost in USD
+  cost_details: {
+    upstream_inference_cost: number;      // Total inference cost
+    upstream_inference_input_cost: number;  // Input token cost
+    upstream_inference_output_cost: number; // Output token cost
+  };
+  completion_tokens_details: {
+    reasoning_tokens: number;      // Reasoning tokens (for models with reasoning)
+  };
+  prompt_tokens_details: {
+    cached_tokens: number;         // Cached tokens (reused from cache)
+    audio_tokens: number;          // Audio tokens (if applicable)
+  };
+}
+```
+
+All usage data is accumulated across all API calls in a debate (opening statements, all rebuttal rounds, conclusions, and judge evaluations).
 
 ## Security
 

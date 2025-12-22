@@ -4,7 +4,7 @@ A modern web application that facilitates structured debates between AI models o
 
 ## Features
 
-- 🤖 **Multi-Model Debates**: Choose from various AI models (GPT-5.2, Claude Sonnet 4.5, Gemini 3 Pro, DeepSeek V3.2, Grok 4, Mistral Medium 3.1) to debate any topic
+- 🤖 **Multi-Model Debates**: Choose from various AI models (Claude Haiku 4.5, Claude Sonnet 4.5, DeepSeek V3.2, Gemini 3 Flash Preview, Gemini 3 Pro Preview, GPT-5.2, Grok 4, Mistral Medium 3.1) to debate any topic
 - 🎯 **Structured Rounds**: Configure the number of debate rounds (1-5) for in-depth discussions
 - ⚖️ **AI Judges**: Multiple AI models evaluate debates based on reasoning quality, evidence, and persuasiveness
 - 💾 **Local Storage**: Debates are automatically saved to your browser's local storage for later review
@@ -130,7 +130,12 @@ ai-debates/
 - `pnpm dev` - Start development server with hot reload
 - `pnpm build` - Build for production
 - `pnpm preview` - Preview production build
-- `pnpm lint` - Run ESLint
+- `pnpm lint` - Run Biome linter
+- `pnpm lint:fix` - Run Biome linter and fix issues
+- `pnpm format` - Format code with Biome
+- `pnpm format:check` - Check code formatting
+- `pnpm check` - Run Biome check (lint + format)
+- `pnpm check:fix` - Run Biome check and fix issues
 
 ## Environment Variables
 
