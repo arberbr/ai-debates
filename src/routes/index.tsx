@@ -23,12 +23,16 @@ import { useApiKey } from '@/hooks/useApiKey'
 
 function IndexComponent() {
   const navigate = useNavigate()
-  const { apiKey, showApiKeyField, setShowApiKeyField, updateApiKey, hasApiKey } = useApiKey()
+  const { apiKey, showApiKeyField, setShowApiKeyField, updateApiKey, saveApiKey, hasApiKey } = useApiKey()
   const [showToast, setShowToast] = useState(false)
   const [isCardUnmounting, setIsCardUnmounting] = useState(false)
 
   const handleApiKeyChange = (value: string) => {
     updateApiKey(value)
+  }
+
+  const handleApiKeyBlur = (value: string) => {
+    saveApiKey(value)
     if (value.trim()) {
       // Show toast
       setShowToast(true)
@@ -160,6 +164,7 @@ function IndexComponent() {
                     placeholder="Enter your OpenRouter API key"
                     value={apiKey}
                     onChange={(e) => handleApiKeyChange(e.target.value)}
+                    onBlur={(e) => handleApiKeyBlur(e.target.value)}
                   />
                   <p className="text-sm text-muted-foreground">
                     Your API key is stored locally and will be used for all debate requests.

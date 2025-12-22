@@ -17,10 +17,15 @@ export function useApiKey() {
 
   const updateApiKey = (value: string) => {
     setApiKey(value)
+  }
+
+  const saveApiKey = (value: string) => {
     if (value.trim()) {
       localStorage.setItem(STORAGE_KEYS.API_KEY, value.trim())
+      setApiKey(value.trim())
     } else {
       localStorage.removeItem(STORAGE_KEYS.API_KEY)
+      setApiKey('')
     }
   }
 
@@ -35,6 +40,7 @@ export function useApiKey() {
     showApiKeyField,
     setShowApiKeyField,
     updateApiKey,
+    saveApiKey,
     clearApiKey,
     hasApiKey: apiKey.trim().length > 0,
   }
