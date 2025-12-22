@@ -3,12 +3,16 @@
  */
 
 export const MODEL_OPTIONS = [
+  { slug: 'anthropic/claude-haiku-4.5', name: 'Anthropic: Claude Haiku 4.5' },
   { slug: 'anthropic/claude-sonnet-4.5', name: 'Anthropic: Claude Sonnet 4.5' },
   { slug: 'deepseek/deepseek-v3.2', name: 'DeepSeek: DeepSeek V3.2' },
-  { slug: 'google/gemini-3-pro-preview', name: 'Google: Gemini 3 Pro' },
+  { slug: 'google/gemini-3-flash-preview', name: 'Google: Gemini 3 Flash Preview' },
+  { slug: 'google/gemini-3-pro-preview', name: 'Google: Gemini 3 Pro Preview' },
   { slug: 'openai/gpt-5.2', name: 'OpenAI: GPT-5.2' },
   { slug: 'x-ai/grok-4', name: 'xAI: Grok 4' },
   { slug: 'mistralai/mistral-medium-3.1', name: 'Mistral: Mistral Medium 3.1' },
+  { slug: 'minimax/minimax-01', name: 'MiniMax: MiniMax-01' },
+  { slug: 'allenai/olmo-3.1-32b-think:free', name: 'AllenAI: Olmo 3.1 32B Think (free)' },
 ] as const
 
 export const STORAGE_KEYS = {
