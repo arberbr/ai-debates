@@ -104,7 +104,7 @@ ai-debates/
 │   ├── components/
 │   │   ├── debate/      # Debate-specific components (DebateContent, JudgeEvaluationCard, etc.)
 │   │   └── ui/          # shadcn/ui components (Button, Card, Input, etc.)
-│   ├── hooks/           # Custom React hooks (useApiKey, useDebates, useLocalStorage)
+│   ├── hooks/           # Custom React hooks (useApiKey, useDebates)
 │   ├── routes/          # TanStack Router file-based routes
 │   │   ├── __root.tsx   # Root layout with navigation
 │   │   ├── index.tsx    # Home page with debate creation form

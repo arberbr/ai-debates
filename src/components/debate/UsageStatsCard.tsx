@@ -7,7 +7,7 @@ interface UsageStatsCardProps {
 
 export const UsageStatsCard = ({ usage }: UsageStatsCardProps) => {
   return (
-    <Card className="p-6 bg-gradient-to-br from-muted/40 via-muted/30 to-muted/40 border-2 border-border/50 shadow-lg mt-8">
+    <Card className="p-6 bg-gradient-to-br from-muted/40 via-muted/30 to-muted/40 border-2 border-border/50 mt-8">
       <h3 className="text-2xl font-bold mb-5 text-foreground">Token Usage & Cost</h3>
       <div className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

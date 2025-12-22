@@ -6,6 +6,39 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Strips markdown syntax from text content to get plain text
+ * @param content - Text content with markdown
+ * @returns Plain text with markdown syntax removed
+ */
+function stripMarkdown(content: string): string {
+  return (
+    content
+      // Remove code blocks
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/`[^`]*`/g, "")
+      // Remove links but keep the text
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      // Remove markdown formatting
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/\*([^*]+)\*/g, "$1")
+      .replace(/__([^_]+)__/g, "$1")
+      .replace(/_([^_]+)_/g, "$1")
+      // Remove headers
+      .replace(/^#{1,6}\s+/gm, "")
+      // Remove list markers
+      .replace(/^[*\-+]\s+/gm, "")
+      .replace(/^\d+\.\s+/gm, "")
+      // Remove blockquotes
+      .replace(/^>\s+/gm, "")
+      // Remove horizontal rules
+      .replace(/^---+$/gm, "")
+      // Clean up extra whitespace
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
+/**
  * Calculates estimated reading time for text content
  * @param content - Text content (can include markdown)
  * @param wordsPerMinute - Average reading speed (default: 200 words/minute)
@@ -17,30 +50,7 @@ export function calculateReadingTime(content: string, wordsPerMinute: number = 2
   }
 
   // Strip markdown syntax to get plain text
-  // Remove markdown headers, bold, italic, links, code blocks, etc.
-  const plainText = content
-    // Remove code blocks
-    .replace(/```[\s\S]*?```/g, "")
-    .replace(/`[^`]*`/g, "")
-    // Remove links but keep the text
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    // Remove markdown formatting
-    .replace(/\*\*([^*]+)\*\*/g, "$1")
-    .replace(/\*([^*]+)\*/g, "$1")
-    .replace(/__([^_]+)__/g, "$1")
-    .replace(/_([^_]+)_/g, "$1")
-    // Remove headers
-    .replace(/^#{1,6}\s+/gm, "")
-    // Remove list markers
-    .replace(/^[*\-+]\s+/gm, "")
-    .replace(/^\d+\.\s+/gm, "")
-    // Remove blockquotes
-    .replace(/^>\s+/gm, "")
-    // Remove horizontal rules
-    .replace(/^---+$/gm, "")
-    // Clean up extra whitespace
-    .replace(/\s+/g, " ")
-    .trim();
+  const plainText = stripMarkdown(content);
 
   // Count words (split by whitespace and filter empty strings)
   const words = plainText.split(/\s+/).filter((word) => word.length > 0);
@@ -91,22 +101,8 @@ export function calculateTotalReadingTimeForSide(
   const countWords = (content: string | undefined): number => {
     if (!content || content.trim().length === 0) return 0;
 
-    // Strip markdown syntax (same as calculateReadingTime)
-    const plainText = content
-      .replace(/```[\s\S]*?```/g, "")
-      .replace(/`[^`]*`/g, "")
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-      .replace(/\*\*([^*]+)\*\*/g, "$1")
-      .replace(/\*([^*]+)\*/g, "$1")
-      .replace(/__([^_]+)__/g, "$1")
-      .replace(/_([^_]+)_/g, "$1")
-      .replace(/^#{1,6}\s+/gm, "")
-      .replace(/^[*\-+]\s+/gm, "")
-      .replace(/^\d+\.\s+/gm, "")
-      .replace(/^>\s+/gm, "")
-      .replace(/^---+$/gm, "")
-      .replace(/\s+/g, " ")
-      .trim();
+    // Strip markdown syntax using shared utility
+    const plainText = stripMarkdown(content);
 
     return plainText.split(/\s+/).filter((word) => word.length > 0).length;
   };

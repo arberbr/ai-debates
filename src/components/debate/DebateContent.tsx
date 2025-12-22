@@ -17,12 +17,15 @@ export const DebateContent = ({
   error,
 }: DebateContentProps) => {
   return (
-    <div className="border rounded-lg min-h-[400px] bg-muted/30 space-y-6 max-h-[700px] overflow-y-auto shadow-sm p-6">
+    <div className="border rounded-lg min-h-[400px] bg-muted/30 space-y-6">
       {!openingStatements && debateRounds.length === 0 && !conclusions && !error && (
         <div className="flex items-center justify-center h-full min-h-[300px]">
-          <p className="text-center text-muted-foreground text-lg">
-            {status || "Waiting for debate to start..."}
-          </p>
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4" />
+            <p className="text-center text-muted-foreground text-lg">
+              {status || "Waiting for debate to start..."}
+            </p>
+          </div>
         </div>
       )}
 

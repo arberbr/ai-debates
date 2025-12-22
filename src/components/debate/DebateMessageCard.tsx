@@ -15,9 +15,7 @@ export const DebateMessageCard = ({ message, side }: DebateMessageCardProps) => 
   const label = isYes ? "FOR" : "AGAINST";
 
   return (
-    <div
-      className={`p-5 ${bgColor} rounded-lg border ${borderColor} shadow-sm hover:shadow-md transition-shadow`}
-    >
+    <div className={`p-5 ${bgColor} rounded-lg border ${borderColor}`}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className={`px-3 py-1 ${badgeBg} text-white font-semibold rounded-md text-sm`}>

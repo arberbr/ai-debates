@@ -28,6 +28,22 @@ export const DEBATE_CONFIG = {
 } as const;
 
 /**
+ * Animation and timing constants
+ */
+export const TIMING = {
+  /** Card unmount animation duration in milliseconds */
+  CARD_UNMOUNT_DURATION: 300,
+  /** API request timeout in milliseconds */
+  API_TIMEOUT: 30000,
+  /** Retry delay base for exponential backoff in milliseconds */
+  RETRY_BASE_DELAY: 1000,
+  /** Maximum retry attempts */
+  MAX_RETRY_ATTEMPTS: 3,
+  /** Redirect delay after API key error in milliseconds */
+  REDIRECT_DELAY: 3000,
+} as const;
+
+/**
  * Gets the API base URL from environment variable or defaults to localhost:3001
  * In Vite, environment variables must be prefixed with VITE_ to be exposed to client-side code
  */

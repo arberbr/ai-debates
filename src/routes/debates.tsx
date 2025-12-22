@@ -95,7 +95,7 @@ function DebatesComponent() {
                 return (
                   <Card
                     key={debate.debateId}
-                    className={`${colorScheme.bg} ${colorScheme.border} border-2 cursor-pointer hover:shadow-lg transition-shadow`}
+                    className={`${colorScheme.bg} ${colorScheme.border} border-2 cursor-pointer`}
                     onClick={handleCardClick}
                   >
                     <CardHeader className="pb-3">
@@ -117,8 +117,9 @@ function DebatesComponent() {
                             }
                           }}
                           className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30 flex-shrink-0"
+                          aria-label={`Delete debate "${debate.topic || "Untitled Debate"}"`}
                         >
-                          x
+                          ×
                         </Button>
                       </div>
                     </CardHeader>

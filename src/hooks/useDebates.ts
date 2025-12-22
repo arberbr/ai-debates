@@ -35,6 +35,11 @@ export function useDebates() {
       }
 
       localStorage.setItem(STORAGE_KEYS.SAVED_DEBATES, JSON.stringify(debates));
+
+      // Dispatch custom event for same-tab listeners
+      window.dispatchEvent(new Event("customStorageChange"));
+
+      // Also trigger loadDebates directly for immediate update
       loadDebates();
     },
     [loadDebates]
@@ -45,6 +50,9 @@ export function useDebates() {
       const updated = debates.filter((d) => d.debateId !== debateId);
       setDebates(updated);
       localStorage.setItem(STORAGE_KEYS.SAVED_DEBATES, JSON.stringify(updated));
+
+      // Dispatch custom event for same-tab listeners
+      window.dispatchEvent(new Event("customStorageChange"));
     },
     [debates]
   );
@@ -52,16 +60,28 @@ export function useDebates() {
   useEffect(() => {
     loadDebates();
 
-    const handleStorageChange = () => {
+    const handleStorageChange = (e: StorageEvent) => {
+      // Only reload if the saved_debates key changed
+      if (e.key === STORAGE_KEYS.SAVED_DEBATES) {
+        loadDebates();
+      }
+    };
+
+    // Listen for storage events from other tabs/windows
+    window.addEventListener("storage", handleStorageChange);
+
+    // Also create a custom event listener for same-tab changes
+    // This is needed because storage events only fire for changes from other tabs/windows
+    const handleCustomStorageChange = () => {
       loadDebates();
     };
 
-    window.addEventListener("storage", handleStorageChange);
-    const interval = setInterval(handleStorageChange, 1000);
+    // Listen for custom storage events (can be dispatched when saving debates in same tab)
+    window.addEventListener("customStorageChange", handleCustomStorageChange);
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      clearInterval(interval);
+      window.removeEventListener("customStorageChange", handleCustomStorageChange);
     };
   }, [loadDebates]);
 

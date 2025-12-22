@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useApiKey } from "@/hooks/useApiKey";
 import { useDebates } from "@/hooks/useDebates";
-import { getApiBaseUrl, STORAGE_KEYS } from "@/lib/constants";
+import { getApiBaseUrl, STORAGE_KEYS, TIMING } from "@/lib/constants";
 import { cleanString } from "@/lib/debate-utils";
 import type {
   Conclusions,
@@ -174,11 +174,43 @@ function DebateComponent() {
       // Redirect to homepage after a delay
       setTimeout(() => {
         navigate({ to: "/" });
-      }, 3000);
+      }, TIMING.REDIRECT_DELAY);
       return;
     }
 
     const apiKey = storedApiKey.trim();
+
+    // Create AbortController for cleanup
+    const abortController = new AbortController();
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+
+    // Helper function for retry logic with exponential backoff
+    const fetchWithRetry = async (
+      url: string,
+      options: RequestInit,
+      retries = TIMING.MAX_RETRY_ATTEMPTS
+    ): Promise<Response> => {
+      for (let attempt = 0; attempt < retries; attempt++) {
+        try {
+          const response = await fetch(url, options);
+          if (response.ok || attempt === retries - 1) {
+            return response;
+          }
+          // Only retry on network errors or 5xx errors
+          if (response.status >= 500 || response.status === 0) {
+            const delay = TIMING.RETRY_BASE_DELAY * 2 ** attempt;
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            continue;
+          }
+          return response;
+        } catch (error) {
+          if (attempt === retries - 1) throw error;
+          const delay = TIMING.RETRY_BASE_DELAY * 2 ** attempt;
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+      throw new Error("Max retries exceeded");
+    };
 
     // Generate title first, then start debate
     const generateTitleAndStartDebate = async () => {
@@ -201,16 +233,20 @@ function DebateComponent() {
         setStatus("Generating title...");
         let generatedTitle: string | null = null;
         try {
-          const titleResponse = await fetch(`${getApiBaseUrl()}/api/debate/generate-title`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              topic,
-              api_key: apiKey,
-            }),
-          });
+          const titleResponse = await fetchWithRetry(
+            `${getApiBaseUrl()}/api/debate/generate-title`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                topic,
+                api_key: apiKey,
+              }),
+              signal: abortController.signal,
+            }
+          );
 
           if (titleResponse.ok) {
             const titleData = await titleResponse.json();
@@ -230,6 +266,10 @@ function DebateComponent() {
             setStatus("Starting debate...");
           }
         } catch (titleError) {
+          // Check if aborted
+          if (abortController.signal.aborted) {
+            return;
+          }
           // If title generation fails, use a fallback title and continue
           console.warn("Title generation error:", titleError);
           const fallbackTitle = topic.split("\n")[0].substring(0, 80).trim();
@@ -239,7 +279,7 @@ function DebateComponent() {
         }
 
         // Step 2: Start debate with SSE streaming (using the generated title)
-        const response = await fetch(`${getApiBaseUrl()}/api/debate/start`, {
+        const response = await fetchWithRetry(`${getApiBaseUrl()}/api/debate/start`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -253,6 +293,7 @@ function DebateComponent() {
             title: generatedTitle, // Send the generated title to avoid duplicate generation
             api_key: apiKey,
           }),
+          signal: abortController.signal,
         });
 
         if (!response.ok) {
@@ -283,7 +324,7 @@ function DebateComponent() {
           throw new Error(errorMessage);
         }
 
-        const reader = response.body?.getReader();
+        reader = response.body?.getReader() || null;
         const decoder = new TextDecoder();
 
         if (!reader) {
@@ -292,26 +333,46 @@ function DebateComponent() {
 
         let buffer = "";
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        try {
+          while (true) {
+            // Check if aborted
+            if (abortController.signal.aborted) {
+              break;
+            }
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
+            const { done, value } = await reader.read();
+            if (done) break;
 
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                handleSSEEvent(data);
-              } catch (e) {
-                console.error("Error parsing SSE data:", e);
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                try {
+                  const data = JSON.parse(line.slice(6));
+                  handleSSEEvent(data);
+                } catch (e) {
+                  console.error("Error parsing SSE data:", e);
+                }
               }
             }
           }
+        } finally {
+          // Clean up reader
+          try {
+            reader.cancel();
+          } catch {
+            // Ignore cancellation errors
+          }
+          reader = null;
         }
       } catch (err: unknown) {
+        // Check if aborted - don't set error if user navigated away
+        if (abortController.signal.aborted) {
+          return;
+        }
+
         const errorMessage = err instanceof Error ? err.message : "Failed to start debate";
         setError(errorMessage);
         console.error("Debate error:", err);
@@ -492,6 +553,15 @@ function DebateComponent() {
 
     // Cleanup: abort any ongoing requests when component unmounts
     return () => {
+      abortController.abort();
+      // Clean up reader if it exists
+      if (reader) {
+        try {
+          reader.cancel();
+        } catch {
+          // Ignore cancellation errors
+        }
+      }
       // Note: We don't reset hasStartedRef here to prevent duplicate starts
       // The ref persists for the lifetime of the component instance
     };
@@ -551,7 +621,7 @@ function DebateComponent() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
       <div className="w-full">
-        <Card className="w-full shadow-lg">
+        <Card className="w-full">
           <CardHeader className="pb-4 border-b border-border">
             <div className="flex items-center justify-between">
               <CardTitle className="text-2xl font-bold text-foreground leading-tight">
@@ -562,7 +632,7 @@ function DebateComponent() {
           <CardContent className="pt-6">
             <div className="space-y-6">
               {error && (
-                <div className="p-5 bg-destructive/10 border-2 border-destructive/30 text-destructive rounded-lg shadow-md">
+                <div className="p-5 bg-destructive/10 border-2 border-destructive/30 text-destructive rounded-lg">
                   <div className="font-bold text-lg mb-3 flex items-center gap-2">
                     <svg
                       className="w-5 h-5"
@@ -620,7 +690,7 @@ function DebateComponent() {
                 <div className="flex justify-center pt-4">
                   <Button
                     onClick={() => {
-                      window.location.href = "/";
+                      navigate({ to: "/" });
                     }}
                     variant="primary"
                     className="px-8 py-3 text-base"

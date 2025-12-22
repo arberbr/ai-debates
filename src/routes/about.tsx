@@ -8,7 +8,7 @@ function AboutComponent() {
         {/* Header */}
         <Card className="w-full">
           <CardHeader>
-            <CardTitle className="text-3xl font-bold text-foreground">About AI Debates</CardTitle>
+            <CardTitle className="text-3xl font-bold text-foreground">About</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-lg text-muted-foreground leading-relaxed">

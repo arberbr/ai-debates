@@ -13,7 +13,7 @@ export const FinalResultCard = ({ finalResult }: FinalResultCardProps) => {
   }[finalResult.winner || "tie"];
 
   return (
-    <Card className="p-6 bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 border-2 border-primary/30 shadow-lg mt-8">
+    <Card className="p-6 bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 border-2 border-primary/30 mt-8">
       <h3 className="text-2xl font-bold mb-5 text-foreground">Final Result</h3>
       <div className="space-y-4">
         <div className="flex items-center gap-3">

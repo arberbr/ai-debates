@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiKey } from "@/hooks/useApiKey";
-import { DEBATE_CONFIG, MODEL_OPTIONS, STORAGE_KEYS } from "@/lib/constants";
+import { DEBATE_CONFIG, MODEL_OPTIONS, STORAGE_KEYS, TIMING } from "@/lib/constants";
 
 function IndexComponent() {
   const navigate = useNavigate();
@@ -37,9 +37,11 @@ function IndexComponent() {
       setTimeout(() => {
         setShowApiKeyField(false);
         setIsCardUnmounting(false);
-      }, 300);
+      }, TIMING.CARD_UNMOUNT_DURATION);
     }
   };
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm({
     defaultValues: {
@@ -50,68 +52,75 @@ function IndexComponent() {
       judgePrompt: "",
     },
     onSubmit: async ({ value }) => {
-      // Validate required fields - trim to handle whitespace
-      const topic = value.topic?.trim() || "";
-      const yesModel = value.yesModel?.trim() || "";
-      const noModel = value.noModel?.trim() || "";
+      setIsSubmitting(true);
+      try {
+        // Validate required fields - trim to handle whitespace
+        const topic = value.topic?.trim() || "";
+        const yesModel = value.yesModel?.trim() || "";
+        const noModel = value.noModel?.trim() || "";
 
-      if (!topic || !yesModel || !noModel) {
-        const missingFields = [];
-        if (!topic) missingFields.push("topic");
-        if (!yesModel) missingFields.push("yes model");
-        if (!noModel) missingFields.push("no model");
-        alert(`Please fill in all required fields: ${missingFields.join(", ")}`);
-        return;
-      }
+        if (!topic || !yesModel || !noModel) {
+          const missingFields = [];
+          if (!topic) missingFields.push("topic");
+          if (!yesModel) missingFields.push("yes model");
+          if (!noModel) missingFields.push("no model");
+          toast.error(`Please fill in all required fields: ${missingFields.join(", ")}`);
+          return;
+        }
 
-      // Validate topic length
-      if (topic.length > DEBATE_CONFIG.MAX_TOPIC_LENGTH) {
-        alert(
-          `Topic must be ${DEBATE_CONFIG.MAX_TOPIC_LENGTH} characters or less. Please shorten your topic.`
+        // Validate topic length
+        if (topic.length > DEBATE_CONFIG.MAX_TOPIC_LENGTH) {
+          toast.error(
+            `Topic must be ${DEBATE_CONFIG.MAX_TOPIC_LENGTH} characters or less. Please shorten your topic.`
+          );
+          return;
+        }
+
+        // Validate API key
+        const currentApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY);
+        if (!currentApiKey || !currentApiKey.trim()) {
+          toast.error("Please enter your OpenRouter API key");
+          setShowApiKeyField(true);
+          return;
+        }
+
+        // Generate a UUID for the debate
+        const debateId = crypto.randomUUID();
+
+        // Save debate config to localStorage before navigating
+        const debateConfig = {
+          debateId,
+          topic,
+          yesModel,
+          noModel,
+          rounds: value.rounds.toString(),
+          judgePrompt: value.judgePrompt?.trim() || "",
+          timestamp: new Date().toISOString(),
+        };
+
+        // Store in a temporary key that will be used when the debate page loads
+        const pendingDebates = JSON.parse(
+          localStorage.getItem(STORAGE_KEYS.PENDING_DEBATES) || "{}"
         );
-        return;
+        pendingDebates[debateId] = debateConfig;
+        localStorage.setItem(STORAGE_KEYS.PENDING_DEBATES, JSON.stringify(pendingDebates));
+
+        // Verify it was saved
+        const verify = JSON.parse(localStorage.getItem(STORAGE_KEYS.PENDING_DEBATES) || "{}");
+        if (!verify[debateId]) {
+          console.error("Failed to save debate config to localStorage");
+          toast.error("Failed to save debate configuration. Please try again.");
+          return;
+        }
+
+        // Navigate to the debate page with just the debateId
+        navigate({
+          to: "/debate/$debateId",
+          params: { debateId },
+        });
+      } finally {
+        setIsSubmitting(false);
       }
-
-      // Validate API key
-      const currentApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY);
-      if (!currentApiKey || !currentApiKey.trim()) {
-        alert("Please enter your OpenRouter API key");
-        setShowApiKeyField(true);
-        return;
-      }
-
-      // Generate a UUID for the debate
-      const debateId = crypto.randomUUID();
-
-      // Save debate config to localStorage before navigating
-      const debateConfig = {
-        debateId,
-        topic,
-        yesModel,
-        noModel,
-        rounds: value.rounds.toString(),
-        judgePrompt: value.judgePrompt?.trim() || "",
-        timestamp: new Date().toISOString(),
-      };
-
-      // Store in a temporary key that will be used when the debate page loads
-      const pendingDebates = JSON.parse(localStorage.getItem(STORAGE_KEYS.PENDING_DEBATES) || "{}");
-      pendingDebates[debateId] = debateConfig;
-      localStorage.setItem(STORAGE_KEYS.PENDING_DEBATES, JSON.stringify(pendingDebates));
-
-      // Verify it was saved
-      const verify = JSON.parse(localStorage.getItem(STORAGE_KEYS.PENDING_DEBATES) || "{}");
-      if (!verify[debateId]) {
-        console.error("Failed to save debate config to localStorage");
-        alert("Failed to save debate configuration. Please try again.");
-        return;
-      }
-
-      // Navigate to the debate page with just the debateId
-      navigate({
-        to: "/debate/$debateId",
-        params: { debateId },
-      });
     },
   });
 
@@ -164,12 +173,15 @@ function IndexComponent() {
                 {(field) => {
                   const topicValue = field.state.value || "";
                   const charCount = topicValue.length;
-                  const maxChars = 300;
+                  const maxChars = DEBATE_CONFIG.MAX_TOPIC_LENGTH;
                   const isOverLimit = charCount > maxChars;
 
                   return (
                     <div className="flex flex-col gap-2">
                       <Textarea
+                        id="debate-topic"
+                        aria-label="Debate topic"
+                        aria-describedby={isOverLimit ? "topic-error" : "topic-count"}
                         className={`w-full ${isOverLimit ? "border-red-500" : ""}`}
                         placeholder={`Enter the debate topic (max ${DEBATE_CONFIG.MAX_TOPIC_LENGTH} characters)`}
                         rows={4}
@@ -182,7 +194,9 @@ function IndexComponent() {
                         onBlur={field.handleBlur}
                       />
                       <div
+                        id={isOverLimit ? "topic-error" : "topic-count"}
                         className={`text-sm ${isOverLimit ? "text-red-500" : "text-muted-foreground"}`}
+                        role={isOverLimit ? "alert" : "status"}
                       >
                         {charCount} / {maxChars} characters
                         {isOverLimit && (
@@ -215,7 +229,11 @@ function IndexComponent() {
                           field.handleBlur();
                         }}
                       >
-                        <SelectTrigger id="yes-model" className="w-full">
+                        <SelectTrigger
+                          id="yes-model"
+                          aria-label="Select model for Yes side"
+                          className="w-full"
+                        >
                           <SelectValue placeholder="Select model for Yes" />
                         </SelectTrigger>
                         <SelectContent>
@@ -240,7 +258,11 @@ function IndexComponent() {
                           field.handleBlur();
                         }}
                       >
-                        <SelectTrigger id="no-model" className="w-full">
+                        <SelectTrigger
+                          id="no-model"
+                          aria-label="Select model for No side"
+                          className="w-full"
+                        >
                           <SelectValue placeholder="Select model for No" />
                         </SelectTrigger>
                         <SelectContent>
@@ -273,6 +295,7 @@ function IndexComponent() {
                       <Input
                         id="rounds"
                         type="number"
+                        aria-label="Number of debate rounds"
                         min={DEBATE_CONFIG.MIN_ROUNDS.toString()}
                         max={DEBATE_CONFIG.MAX_ROUNDS.toString()}
                         step="1"
@@ -305,6 +328,7 @@ function IndexComponent() {
                   <div className="flex flex-col gap-3">
                     <Textarea
                       id="judge-prompt"
+                      aria-label="Judge system prompt"
                       placeholder="Describe how judges should evaluate the debate (e.g., reasoning quality, evidence, factual accuracy, conciseness)"
                       rows={4}
                       value={field.state.value}
@@ -321,10 +345,10 @@ function IndexComponent() {
           <Button
             type="submit"
             variant="primary"
-            disabled={!hasApiKey}
+            disabled={!hasApiKey || isSubmitting}
             className="mt-2 px-7 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Start Debate
+            {isSubmitting ? "Starting Debate..." : "Start Debate"}
           </Button>
         </form>
       </div>

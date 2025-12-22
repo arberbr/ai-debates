@@ -14,7 +14,7 @@ export const JudgeEvaluationCard = ({ evaluation }: JudgeEvaluationCardProps) =>
   }[evaluation.winner || "tie"];
 
   return (
-    <Card className="p-6 border-2 border-border/60 shadow-lg hover:shadow-xl transition-all bg-card/50 backdrop-blur-sm">
+    <Card className="p-6 border-2 border-border/60 transition-all bg-card/50 backdrop-blur-sm">
       <div className="space-y-6">
         {/* Header Section */}
         <div className="flex items-center justify-between flex-wrap gap-4 pb-4 border-b-2 border-border/40">
@@ -25,7 +25,7 @@ export const JudgeEvaluationCard = ({ evaluation }: JudgeEvaluationCardProps) =>
             <div className="font-semibold text-base text-foreground">{evaluation.judgeModel}</div>
           </div>
           {evaluation.winner && (
-            <div className={`px-5 py-2 rounded-lg font-bold text-sm shadow-sm ${winnerColor}`}>
+            <div className={`px-5 py-2 rounded-lg font-bold text-sm ${winnerColor}`}>
               Winner: {evaluation.winner.toUpperCase()}
             </div>
           )}
@@ -33,12 +33,12 @@ export const JudgeEvaluationCard = ({ evaluation }: JudgeEvaluationCardProps) =>
 
         {/* Scores Section */}
         {evaluation.scores && (
-          <div className="flex items-center gap-6 p-6 bg-gradient-to-r from-muted/40 via-muted/30 to-muted/40 rounded-lg border border-border/50 shadow-inner">
+          <div className="flex items-center gap-6 p-6 bg-gradient-to-r from-muted/40 via-muted/30 to-muted/40 rounded-lg border border-border/50">
             <div className="flex-1 text-center">
               <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
                 FOR Score
               </div>
-              <div className="text-4xl font-bold text-blue-600 dark:text-blue-400 drop-shadow-sm">
+              <div className="text-4xl font-bold text-blue-600 dark:text-blue-400">
                 {evaluation.scores.yes}
               </div>
             </div>
@@ -47,7 +47,7 @@ export const JudgeEvaluationCard = ({ evaluation }: JudgeEvaluationCardProps) =>
               <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
                 AGAINST Score
               </div>
-              <div className="text-4xl font-bold text-red-600 dark:text-red-400 drop-shadow-sm">
+              <div className="text-4xl font-bold text-red-600 dark:text-red-400">
                 {evaluation.scores.no}
               </div>
             </div>
