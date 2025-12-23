@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import type { DebateMessage } from "@/lib/types";
 import { calculateReadingTime } from "@/lib/utils";
 import { MarkdownContent } from "./MarkdownContent";
@@ -15,7 +15,7 @@ export const DebateMessageCard = memo(({ message, side }: DebateMessageCardProps
   const badgeBg = isYes ? "bg-blue-600" : "bg-red-600";
   const label = isYes ? "FOR" : "AGAINST";
 
-  const readingTime = calculateReadingTime(message.content);
+  const readingTime = useMemo(() => calculateReadingTime(message.content), [message.content]);
 
   return (
     <article

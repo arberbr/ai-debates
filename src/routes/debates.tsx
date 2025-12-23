@@ -4,19 +4,27 @@ import { FeatureErrorBoundary } from "@/components/FeatureErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useDebates } from "@/hooks/useDebates";
 import { cleanString } from "@/lib/debate-utils";
 import { calculateTotalReadingTimeForSide, formatDate24Hour, getModelName } from "@/lib/utils";
 
 function DebatesComponent() {
   const navigate = useNavigate();
-  const { debates: savedDebates, deleteDebate } = useDebates();
+  const { debates: savedDebates, deleteDebate, isLoading } = useDebates();
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
       <FeatureErrorBoundary featureName="Debates List">
         <div className="w-full">
-          {savedDebates.length === 0 ? (
+          {isLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-8 w-48 mb-6" />
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-48 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : savedDebates.length === 0 ? (
             <EmptyState
               title="No debates found"
               description="Start a new debate from the Home page to see it here."

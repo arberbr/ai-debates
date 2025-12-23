@@ -101,10 +101,12 @@ export function useDebates() {
   const deleteDebate = useCallback(
     (debateId: string) => {
       try {
-        const updated = debates.filter((d) => d.debateId !== debateId);
-        // Update storage first, then state to prevent inconsistency
-        setItem(STORAGE_KEYS.SAVED_DEBATES, updated);
-        setDebates(updated);
+        setDebates((prev) => {
+          const updated = prev.filter((d) => d.debateId !== debateId);
+          // Update storage first, then state to prevent inconsistency
+          setItem(STORAGE_KEYS.SAVED_DEBATES, updated);
+          return updated;
+        });
 
         // Dispatch custom event for same-tab listeners
         window.dispatchEvent(new Event("customStorageChange"));
@@ -116,7 +118,7 @@ export function useDebates() {
         throw e;
       }
     },
-    [debates, setItem, loadDebates]
+    [setItem, loadDebates]
   );
 
   useEffect(() => {
