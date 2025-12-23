@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DebateContent } from "@/components/debate/DebateContent";
 import { FinalResultCard } from "@/components/debate/FinalResultCard";
 import { JudgeEvaluationCard } from "@/components/debate/JudgeEvaluationCard";
@@ -44,9 +44,9 @@ function DebateComponent() {
     debateConfig: savedDebateState ? null : debateConfig, // Don't start stream for saved debates
     debateId,
     clearApiKey,
-    onError: (errorMessage) => {
+    onError: useCallback((errorMessage: string) => {
       console.error("Debate stream error:", errorMessage);
-    },
+    }, []),
   });
 
   // Load saved debate or config on mount
