@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -66,14 +67,20 @@ function DebatesComponent() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
                             const debateTitle = cleanString(debate.topic || "Untitled Debate");
                             const confirmed = window.confirm(
                               `Are you sure you want to delete "${debateTitle}"?\n\nThis action cannot be undone.`
                             );
                             if (confirmed) {
-                              deleteDebate(debate.debateId);
+                              try {
+                                deleteDebate(debate.debateId);
+                                toast.success("Debate deleted successfully");
+                              } catch (error) {
+                                toast.error("Failed to delete debate. Please try again.");
+                                console.error("Delete error:", error);
+                              }
                             }
                           }}
                           className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30 flex-shrink-0"

@@ -50,7 +50,15 @@ export const TIMING = {
 /**
  * Gets the API base URL from environment variable or defaults to localhost:3001
  * In Vite, environment variables must be prefixed with VITE_ to be exposed to client-side code
+ * Validates URL format at runtime
  */
 export const getApiBaseUrl = (): string => {
-  return import.meta.env.VITE_API_BASE_URL || "http://localhost:3001";
+  const url = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001";
+  try {
+    new URL(url); // Validate URL format
+    return url;
+  } catch {
+    console.warn("Invalid API base URL, using default");
+    return "http://localhost:3001";
+  }
 };

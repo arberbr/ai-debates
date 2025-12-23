@@ -97,6 +97,7 @@ export function useDebateStream({
   const startedDebateIdRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const startingDebateIdRef = useRef<string | null>(null); // Track which debateId is currently starting
+  const activeDebateIdRef = useRef<string | null>(null); // Track the currently active debate
   const generateTitleAndStartDebateRef = useRef<
     ((config: DebateConfig, apiKey: string) => Promise<void>) | null
   >(null);
@@ -277,11 +278,27 @@ export function useDebateStream({
   );
 
   /**
+   * Helper function to generate fallback title
+   */
+  const generateFallbackTitle = useCallback((topic: string): string => {
+    const fallbackTitle = topic
+      .split("\n")[0]
+      .substring(0, DEBATE_CONFIG.FALLBACK_TITLE_LENGTH)
+      .trim();
+    return fallbackTitle.endsWith("...") ? fallbackTitle : `${fallbackTitle}...`;
+  }, []);
+
+  /**
    * Generate title and start debate stream
    */
   const generateTitleAndStartDebate = useCallback(
     async (config: DebateConfig, apiKey: string) => {
       const { topic, yesModel, noModel, rounds, judgePrompt } = config;
+
+      // Check if this debate is still the active one
+      if (activeDebateIdRef.current !== debateId) {
+        return;
+      }
 
       // Clean up pending debate entry once we start
       try {
@@ -335,25 +352,13 @@ export function useDebateStream({
                   "Title generation response missing title field, using fallback",
                   titleData
                 );
-                const fallbackTitle = topic
-                  .split("\n")[0]
-                  .substring(0, DEBATE_CONFIG.FALLBACK_TITLE_LENGTH)
-                  .trim();
-                generatedTitle = fallbackTitle.endsWith("...")
-                  ? fallbackTitle
-                  : `${fallbackTitle}...`;
+                generatedTitle = generateFallbackTitle(topic);
                 setDisplayTopic(generatedTitle);
                 setStatus("Starting debate...");
               }
             } catch (jsonError) {
               console.warn("Failed to parse title response JSON, using fallback:", jsonError);
-              const fallbackTitle = topic
-                .split("\n")[0]
-                .substring(0, DEBATE_CONFIG.FALLBACK_TITLE_LENGTH)
-                .trim();
-              generatedTitle = fallbackTitle.endsWith("...")
-                ? fallbackTitle
-                : `${fallbackTitle}...`;
+              generatedTitle = generateFallbackTitle(topic);
               setDisplayTopic(generatedTitle);
               setStatus("Starting debate...");
             }
@@ -363,11 +368,7 @@ export function useDebateStream({
               titleResponse.status,
               "using fallback"
             );
-            const fallbackTitle = topic
-              .split("\n")[0]
-              .substring(0, DEBATE_CONFIG.FALLBACK_TITLE_LENGTH)
-              .trim();
-            generatedTitle = fallbackTitle.endsWith("...") ? fallbackTitle : `${fallbackTitle}...`;
+            generatedTitle = generateFallbackTitle(topic);
             setDisplayTopic(generatedTitle);
             setStatus("Starting debate...");
           }
@@ -376,22 +377,14 @@ export function useDebateStream({
             return;
           }
           console.warn("Title generation error:", titleError);
-          const fallbackTitle = topic
-            .split("\n")[0]
-            .substring(0, DEBATE_CONFIG.FALLBACK_TITLE_LENGTH)
-            .trim();
-          generatedTitle = fallbackTitle.endsWith("...") ? fallbackTitle : `${fallbackTitle}...`;
+          generatedTitle = generateFallbackTitle(topic);
           setDisplayTopic(generatedTitle);
           setStatus("Starting debate...");
         }
 
         // Ensure we have a title before proceeding
         if (!generatedTitle) {
-          const fallbackTitle = topic
-            .split("\n")[0]
-            .substring(0, DEBATE_CONFIG.FALLBACK_TITLE_LENGTH)
-            .trim();
-          generatedTitle = fallbackTitle.endsWith("...") ? fallbackTitle : `${fallbackTitle}...`;
+          generatedTitle = generateFallbackTitle(topic);
           setDisplayTopic(generatedTitle);
         }
 
@@ -500,7 +493,16 @@ export function useDebateStream({
         onError?.(errorMessage);
       }
     },
-    [debateId, fetchWithRetry, handleSSEEvent, clearApiKey, onError, getItem, setItem]
+    [
+      debateId,
+      fetchWithRetry,
+      handleSSEEvent,
+      clearApiKey,
+      onError,
+      getItem,
+      setItem,
+      generateFallbackTitle,
+    ]
   );
 
   // Keep the ref updated with the latest callback
@@ -542,19 +544,26 @@ export function useDebateStream({
 
     // Atomically claim this debateId for starting (prevents concurrent starts)
     if (startingDebateIdRef.current !== null && startingDebateIdRef.current !== debateId) {
-      // Another debate is starting, wait for it
-      return;
+      // Another debate is starting, abort it first
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
     }
 
-    // Mark this debate as starting immediately
-    startingDebateIdRef.current = debateId;
-
-    // If this is a different debate, abort the previous one
-    if (startedDebateIdRef.current !== debateId && abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
+    // If this is a different debate, abort the previous one and reset state
+    if (activeDebateIdRef.current !== null && activeDebateIdRef.current !== debateId) {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
       hasStartedRef.current = false;
+      startedDebateIdRef.current = null;
     }
+
+    // Mark this debate as the active one
+    activeDebateIdRef.current = debateId;
+    startingDebateIdRef.current = debateId;
 
     // Mark this debate as started
     hasStartedRef.current = true;
@@ -584,16 +593,41 @@ export function useDebateStream({
       startingDebateIdRef.current = null;
     }
 
-    // Cleanup: only abort on unmount or when debateId actually changes
+    // Cleanup: abort on unmount or when debateId changes
     return () => {
-      // Don't reset refs here - let them persist to prevent re-runs
-      // Only abort the controller if this specific effect is cleaning up
-      if (abortControllerRef.current && startedDebateIdRef.current === debateId) {
+      // Abort if this is the active debate
+      if (abortControllerRef.current && activeDebateIdRef.current === debateId) {
         abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      // Reset refs if this was the active debate
+      if (activeDebateIdRef.current === debateId) {
+        activeDebateIdRef.current = null;
+        hasStartedRef.current = false;
+        startedDebateIdRef.current = null;
+      }
+      // Reset starting flag if this was the starting debate
+      if (startingDebateIdRef.current === debateId) {
+        startingDebateIdRef.current = null;
       }
     };
     // Depend on debateConfig to react when it changes, but guards prevent duplicate runs
   }, [debateConfig, debateId, isComplete]);
+
+  // Cleanup effect for component unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup when component unmounts
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      activeDebateIdRef.current = null;
+      hasStartedRef.current = false;
+      startedDebateIdRef.current = null;
+      startingDebateIdRef.current = null;
+    };
+  }, []);
 
   return {
     status,

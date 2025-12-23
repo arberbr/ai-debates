@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { MODEL_OPTIONS } from "./constants";
+import { DEBATE_CONFIG, MODEL_OPTIONS } from "./constants";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -42,10 +42,13 @@ function stripMarkdown(content: string): string {
 /**
  * Calculates estimated reading time for text content
  * @param content - Text content (can include markdown)
- * @param wordsPerMinute - Average reading speed (default: 200 words/minute)
+ * @param wordsPerMinute - Average reading speed (default: DEBATE_CONFIG.WORDS_PER_MINUTE)
  * @returns Formatted reading time string (e.g., "5 min read", "1 min read")
  */
-export function calculateReadingTime(content: string, wordsPerMinute: number = 200): string {
+export function calculateReadingTime(
+  content: string,
+  wordsPerMinute: number = DEBATE_CONFIG.WORDS_PER_MINUTE
+): string {
   if (!content || content.trim().length === 0) {
     return "0 min read";
   }
@@ -106,7 +109,7 @@ export function calculateTotalReadingTimeForSide(
   side: "yes" | "no"
 ): string {
   let totalWords = 0;
-  const wordsPerMinute = 200;
+  const wordsPerMinute = DEBATE_CONFIG.WORDS_PER_MINUTE;
 
   // Helper to count words in content
   const countWords = (content: string | undefined): number => {

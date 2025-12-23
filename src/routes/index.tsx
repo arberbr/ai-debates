@@ -65,9 +65,15 @@ function IndexComponent() {
 
       try {
         // Validate required fields - trim to handle whitespace
-        const topic = value.topic?.trim() || "";
+        let topic = value.topic?.trim() || "";
         const yesModel = value.yesModel?.trim() || "";
         const noModel = value.noModel?.trim() || "";
+
+        // Sanitize topic input before API call
+        topic = topic
+          .replace(/[<>]/g, "") // Remove potential HTML
+          .substring(0, DEBATE_CONFIG.MAX_TOPIC_LENGTH)
+          .trim();
 
         const errors: typeof fieldErrors = {};
 
@@ -438,7 +444,7 @@ function IndexComponent() {
           <Button
             type="submit"
             variant="primary"
-            disabled={!hasApiKey || isSubmitting}
+            disabled={(!hasApiKey && !apiKey.trim()) || isSubmitting}
             className="mt-2 px-7 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? "Starting Debate..." : "Start Debate"}
