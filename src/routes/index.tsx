@@ -301,7 +301,6 @@ function IndexComponent() {
                           onValueChange={(value) => {
                             field.handleChange(value);
                             field.handleBlur();
-                            // Clear error when user selects a model
                             if (fieldErrors.yesModel) {
                               setFieldErrors((prev) => ({ ...prev, yesModel: undefined }));
                             }
@@ -310,13 +309,16 @@ function IndexComponent() {
                           <SelectTrigger
                             id="yes-model"
                             aria-label="Select model for Yes side"
-                            aria-describedby={hasError ? errorId : undefined}
+                            aria-describedby={hasError ? errorId : "yes-model-desc"}
                             aria-invalid={hasError}
                             aria-errormessage={hasError ? errorId : undefined}
                             className={`w-full ${hasError ? "border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500" : ""}`}
                           >
                             <SelectValue placeholder="Select model for Yes" />
                           </SelectTrigger>
+                          <div id="yes-model-desc" className="sr-only">
+                            Choose the AI model that will argue in favor of the topic.
+                          </div>
                           <SelectContent>
                             {MODEL_OPTIONS.map((model) => (
                               <SelectItem key={`yes-${model.slug}`} value={model.slug}>
@@ -362,13 +364,16 @@ function IndexComponent() {
                           <SelectTrigger
                             id="no-model"
                             aria-label="Select model for No side"
-                            aria-describedby={hasError ? errorId : undefined}
+                            aria-describedby={hasError ? errorId : "no-model-desc"}
                             aria-invalid={hasError}
                             aria-errormessage={hasError ? errorId : undefined}
                             className={`w-full ${hasError ? "border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500" : ""}`}
                           >
                             <SelectValue placeholder="Select model for No" />
                           </SelectTrigger>
+                          <div id="no-model-desc" className="sr-only">
+                            Choose the AI model that will argue against the topic.
+                          </div>
                           <SelectContent>
                             {MODEL_OPTIONS.map((model) => (
                               <SelectItem key={`no-${model.slug}`} value={model.slug}>

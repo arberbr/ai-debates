@@ -7,12 +7,14 @@ import { UsageStatsCard } from "@/components/debate/UsageStatsCard";
 import { FeatureErrorBoundary } from "@/components/FeatureErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useApiKey } from "@/hooks/useApiKey";
 import { useDebateStream } from "@/hooks/useDebateStream";
 import { useDebates } from "@/hooks/useDebates";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { STORAGE_KEYS } from "@/lib/constants";
 import { cleanString } from "@/lib/debate-utils";
+import { debateConfigSchema } from "@/lib/schemas";
 import type { DebateConfig, SavedDebate } from "@/lib/types";
 
 function DebateComponent() {
@@ -77,9 +79,9 @@ function DebateComponent() {
         return;
       }
 
-      const config = pendingDebates[debateId] || null;
+      const rawConfig = pendingDebates[debateId] || null;
 
-      if (!config) {
+      if (!rawConfig) {
         setConfigLoadError(
           `No debate configuration found for ID: ${debateId}. Please start a new debate.`
         );
@@ -87,17 +89,20 @@ function DebateComponent() {
         return;
       }
 
-      if (!config.topic || !config.yesModel || !config.noModel) {
-        const errorMsg = "Invalid debate configuration: missing required fields.";
+      // Validate config with Zod
+      const validationResult = debateConfigSchema.safeParse(rawConfig);
+
+      if (!validationResult.success) {
+        const errorMsg = "Invalid debate configuration: missing required fields or invalid format.";
         setConfigLoadError(errorMsg);
-        console.error("Invalid config found - missing required fields:", {
-          hasTopic: !!config.topic,
-          hasYesModel: !!config.yesModel,
-          hasNoModel: !!config.noModel,
-          config,
+        console.error("Invalid config found:", {
+          errors: validationResult.error.format(),
+          config: rawConfig,
         });
         return;
       }
+
+      const config = validationResult.data;
 
       // Set the config - this will trigger useDebateStream to start
       setDebateConfig({
@@ -217,6 +222,9 @@ function DebateComponent() {
     saveDebate,
   ]);
 
+  // Add loading check
+  const isLoading = !debateConfig && !savedDebateState && !configLoadError;
+
   return (
     <main className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
       <a
@@ -227,153 +235,169 @@ function DebateComponent() {
       </a>
       <FeatureErrorBoundary featureName="Debate View">
         <div className="w-full">
-          <Card className="w-full">
-            <CardHeader className="pb-4 border-b border-border">
-              <div className="flex items-center justify-between">
-                <CardTitle
-                  className="text-2xl font-bold text-foreground leading-tight"
-                  id="debate-title"
-                >
-                  {displayData.displayTopic}
-                </CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-6" id="debate-content">
-              <section className="space-y-6" aria-labelledby="debate-title">
-                {/* Status announcement for screen readers */}
-                <output aria-live="polite" aria-atomic="true" className="sr-only">
-                  {displayData.status}
-                </output>
-                {configLoadError && (
-                  <div
-                    role="alert"
-                    aria-live="assertive"
-                    aria-atomic="true"
-                    className="p-5 bg-destructive/10 border-2 border-destructive/30 text-destructive rounded-lg mb-6"
+          {isLoading ? (
+            <Card className="w-full animate-pulse">
+              <CardHeader className="pb-4 border-b border-border">
+                <Skeleton className="h-8 w-3/4" />
+              </CardHeader>
+              <CardContent className="pt-6 space-y-6">
+                <Skeleton className="h-40 w-full" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Skeleton className="h-64 w-full" />
+                  <Skeleton className="h-64 w-full" />
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="w-full">
+              <CardHeader className="pb-4 border-b border-border">
+                <div className="flex items-center justify-between">
+                  <CardTitle
+                    className="text-2xl font-bold text-foreground leading-tight"
+                    id="debate-title"
                   >
-                    <div className="font-bold text-lg mb-3 flex items-center gap-2">
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
+                    {displayData.displayTopic}
+                  </CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6" id="debate-content">
+                <section className="space-y-6" aria-labelledby="debate-title">
+                  {/* Status announcement for screen readers */}
+                  <output aria-live="polite" aria-atomic="true" className="sr-only">
+                    {displayData.status}
+                  </output>
+                  {configLoadError && (
+                    <div
+                      role="alert"
+                      aria-live="assertive"
+                      aria-atomic="true"
+                      className="p-5 bg-destructive/10 border-2 border-destructive/30 text-destructive rounded-lg mb-6"
+                    >
+                      <div className="font-bold text-lg mb-3 flex items-center gap-2">
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <title>Configuration Error</title>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        <span>Configuration Error</span>
+                      </div>
+                      <div className="text-base whitespace-pre-wrap leading-relaxed">
+                        {configLoadError}
+                      </div>
+                      <div className="mt-4">
+                        <Button
+                          onClick={() => navigate({ to: "/" })}
+                          variant="primary"
+                          className="mr-2"
+                        >
+                          Start New Debate
+                        </Button>
+                        <Button onClick={() => navigate({ to: "/debates" })} variant="outline">
+                          View All Debates
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {displayData.error && (
+                    <div
+                      role="alert"
+                      aria-live="assertive"
+                      aria-atomic="true"
+                      className="p-5 bg-destructive/10 border-2 border-destructive/30 text-destructive rounded-lg"
+                    >
+                      <div className="font-bold text-lg mb-3 flex items-center gap-2">
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <title>Error</title>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        <span>Error occurred</span>
+                      </div>
+                      <div className="text-base whitespace-pre-wrap leading-relaxed">
+                        {displayData.error}
+                      </div>
+                      {displayData.error.includes("credits") ||
+                      displayData.error.includes("402") ? (
+                        <div className="mt-4 p-3 bg-destructive/5 border border-destructive/20 rounded-md text-sm text-destructive/90">
+                          This appears to be a credit limit issue. Please check your OpenRouter
+                          account balance or try a different model.
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+
+                  {/* Debate Content */}
+                  <DebateContent
+                    openingStatements={displayData.openingStatements}
+                    debateRounds={displayData.debateRounds}
+                    conclusions={displayData.conclusions}
+                    status={displayData.status}
+                    error={displayData.error}
+                  />
+
+                  {/* Judge Evaluations */}
+                  {displayData.judgeEvaluations.length > 0 && (
+                    <section className="space-y-6 mt-8" aria-labelledby="judge-evaluations-heading">
+                      <h2
+                        id="judge-evaluations-heading"
+                        className="text-2xl font-bold text-foreground mb-6"
                       >
-                        <title>Configuration Error</title>
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      <span>Configuration Error</span>
-                    </div>
-                    <div className="text-base whitespace-pre-wrap leading-relaxed">
-                      {configLoadError}
-                    </div>
-                    <div className="mt-4">
+                        Judge Evaluations
+                      </h2>
+                      {displayData.judgeEvaluations.map((eval_) => (
+                        <JudgeEvaluationCard key={eval_.judgeModel} evaluation={eval_} />
+                      ))}
+                    </section>
+                  )}
+
+                  {/* Final Result */}
+                  {displayData.finalResult && (
+                    <FinalResultCard finalResult={displayData.finalResult} />
+                  )}
+
+                  {/* Usage Statistics */}
+                  {displayData.usage && displayData.isComplete && (
+                    <UsageStatsCard usage={displayData.usage} />
+                  )}
+
+                  {displayData.isComplete && (
+                    <div className="flex justify-center pt-4">
                       <Button
-                        onClick={() => navigate({ to: "/" })}
+                        onClick={() => {
+                          navigate({ to: "/" });
+                        }}
                         variant="primary"
-                        className="mr-2"
+                        className="px-8 py-3 text-base focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        aria-label="Start a new debate"
                       >
                         Start New Debate
                       </Button>
-                      <Button onClick={() => navigate({ to: "/debates" })} variant="outline">
-                        View All Debates
-                      </Button>
                     </div>
-                  </div>
-                )}
-                {displayData.error && (
-                  <div
-                    role="alert"
-                    aria-live="assertive"
-                    aria-atomic="true"
-                    className="p-5 bg-destructive/10 border-2 border-destructive/30 text-destructive rounded-lg"
-                  >
-                    <div className="font-bold text-lg mb-3 flex items-center gap-2">
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                      >
-                        <title>Error</title>
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      <span>Error occurred</span>
-                    </div>
-                    <div className="text-base whitespace-pre-wrap leading-relaxed">
-                      {displayData.error}
-                    </div>
-                    {displayData.error.includes("credits") || displayData.error.includes("402") ? (
-                      <div className="mt-4 p-3 bg-destructive/5 border border-destructive/20 rounded-md text-sm text-destructive/90">
-                        This appears to be a credit limit issue. Please check your OpenRouter
-                        account balance or try a different model.
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-
-                {/* Debate Content */}
-                <DebateContent
-                  openingStatements={displayData.openingStatements}
-                  debateRounds={displayData.debateRounds}
-                  conclusions={displayData.conclusions}
-                  status={displayData.status}
-                  error={displayData.error}
-                />
-
-                {/* Judge Evaluations */}
-                {displayData.judgeEvaluations.length > 0 && (
-                  <section className="space-y-6 mt-8" aria-labelledby="judge-evaluations-heading">
-                    <h2
-                      id="judge-evaluations-heading"
-                      className="text-2xl font-bold text-foreground mb-6"
-                    >
-                      Judge Evaluations
-                    </h2>
-                    {displayData.judgeEvaluations.map((eval_) => (
-                      <JudgeEvaluationCard key={eval_.judgeModel} evaluation={eval_} />
-                    ))}
-                  </section>
-                )}
-
-                {/* Final Result */}
-                {displayData.finalResult && (
-                  <FinalResultCard finalResult={displayData.finalResult} />
-                )}
-
-                {/* Usage Statistics */}
-                {displayData.usage && displayData.isComplete && (
-                  <UsageStatsCard usage={displayData.usage} />
-                )}
-
-                {displayData.isComplete && (
-                  <div className="flex justify-center pt-4">
-                    <Button
-                      onClick={() => {
-                        navigate({ to: "/" });
-                      }}
-                      variant="primary"
-                      className="px-8 py-3 text-base focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                      aria-label="Start a new debate"
-                    >
-                      Start New Debate
-                    </Button>
-                  </div>
-                )}
-              </section>
-            </CardContent>
-          </Card>
+                  )}
+                </section>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </FeatureErrorBoundary>
     </main>

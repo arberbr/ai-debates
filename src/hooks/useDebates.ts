@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { z } from "zod";
 import { STORAGE_KEYS } from "@/lib/constants";
+import { savedDebateSchema } from "@/lib/schemas";
 import type { SavedDebate } from "@/lib/types";
 import { useLocalStorage } from "./useLocalStorage";
 
@@ -10,19 +12,35 @@ import { useLocalStorage } from "./useLocalStorage";
  */
 export function useDebates() {
   const [debates, setDebates] = useState<SavedDebate[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { getItem, setItem, checkQuotaBeforeWrite, getStorageStats } = useLocalStorage();
 
   /**
    * Load debates from localStorage
    */
   const loadDebates = useCallback(() => {
-    const saved = getItem<SavedDebate[]>(STORAGE_KEYS.SAVED_DEBATES, []);
-    if (saved && Array.isArray(saved)) {
-      // Sort by timestamp, most recent first
-      saved.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      setDebates(saved);
-    } else {
-      setDebates([]);
+    setIsLoading(true);
+    try {
+      const saved = getItem<unknown>(STORAGE_KEYS.SAVED_DEBATES, []);
+
+      // Validate with Zod
+      const result = z.array(savedDebateSchema).safeParse(saved);
+
+      if (result.success) {
+        const validatedDebates = result.data;
+        // Sort by timestamp, most recent first
+        validatedDebates.sort(
+          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+        setDebates(validatedDebates);
+      } else {
+        console.error("Failed to validate saved debates:", result.error);
+        // Fallback to empty array if validation fails completely
+        // Alternatively, could try to filter out only invalid ones
+        setDebates([]);
+      }
+    } finally {
+      setIsLoading(false);
     }
   }, [getItem]);
 
@@ -141,5 +159,5 @@ export function useDebates() {
     };
   }, [loadDebates]);
 
-  return { debates, loadDebates, saveDebate, deleteDebate, getStorageStats };
+  return { debates, isLoading, loadDebates, saveDebate, deleteDebate, getStorageStats };
 }

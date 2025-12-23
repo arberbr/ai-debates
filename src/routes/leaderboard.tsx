@@ -4,6 +4,7 @@ import { FeatureErrorBoundary } from "@/components/FeatureErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useDebates } from "@/hooks/useDebates";
 import { cleanString } from "@/lib/debate-utils";
 import { getModelName } from "@/lib/utils";
@@ -29,14 +30,15 @@ interface TopicStats {
 
 function LeaderboardComponent() {
   const navigate = useNavigate();
-  const { debates: savedDebates } = useDebates();
+  const { debates: savedDebates, isLoading } = useDebates();
   const [sortBy, setSortBy] = useState<"winRate" | "wins" | "averageScore" | "totalDebates">(
     "winRate"
   );
 
   // Memoize processed statistics to avoid recalculating on every render
   const { modelStats, topicStats, totalStats } = useMemo(() => {
-    if (savedDebates.length === 0) {
+    // Return empty stats if loading or no debates
+    if (isLoading || savedDebates.length === 0) {
       return {
         modelStats: [] as ModelStats[],
         topicStats: [] as TopicStats[],
@@ -48,12 +50,14 @@ function LeaderboardComponent() {
         },
       };
     }
-
+    // ... rest of useMemo logic ...
     try {
       const debates = savedDebates;
 
       // Calculate model statistics
       const modelMap = new Map<string, ModelStats>();
+
+      // ...
 
       debates.forEach((debate) => {
         if (!debate.finalResult || !debate.yesModel || !debate.noModel) return;
@@ -202,7 +206,51 @@ function LeaderboardComponent() {
         },
       };
     }
-  }, [savedDebates, sortBy]);
+  }, [savedDebates, sortBy, isLoading]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
+        <div className="w-full space-y-6">
+          <div className="mb-6 space-y-2">
+            <Skeleton className="h-10 w-48" />
+            <Skeleton className="h-5 w-64" />
+          </div>
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-32" />
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-24 w-full" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between">
+                <Skeleton className="h-6 w-40" />
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4].map((i) => (
+                    <Skeleton key={i} className="h-9 w-20" />
+                  ))}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   if (savedDebates.length === 0) {
     return (

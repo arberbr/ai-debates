@@ -53,8 +53,14 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Global focus styles for accessibility */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 }
 
@@ -63,6 +69,7 @@
     opacity: 0;
     transform: translateY(1.25rem);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
