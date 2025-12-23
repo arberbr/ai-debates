@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { DEBATE_CONFIG, getApiBaseUrl, STORAGE_KEYS, TIMING } from "@/lib/constants";
+import { ApiError, apiClient, createDebateStartConfig } from "@/lib/api-client";
+import { DEBATE_CONFIG, STORAGE_KEYS } from "@/lib/constants";
 import { cleanString } from "@/lib/debate-utils";
 import type {
   Conclusions,
@@ -112,39 +113,6 @@ export function useDebateStream({
   }, [onError, getItemRaw]);
 
   /**
-   * Helper function for retry logic with exponential backoff
-   */
-  const fetchWithRetry = useCallback(
-    async (
-      url: string,
-      options: RequestInit,
-      retries = TIMING.MAX_RETRY_ATTEMPTS
-    ): Promise<Response> => {
-      for (let attempt = 0; attempt < retries; attempt++) {
-        try {
-          const response = await fetch(url, options);
-          if (response.ok || attempt === retries - 1) {
-            return response;
-          }
-          // Only retry on network errors or 5xx errors
-          if (response.status >= 500 || response.status === 0) {
-            const delay = TIMING.RETRY_BASE_DELAY * 2 ** attempt;
-            await new Promise((resolve) => setTimeout(resolve, delay));
-            continue;
-          }
-          return response;
-        } catch (error) {
-          if (attempt === retries - 1) throw error;
-          const delay = TIMING.RETRY_BASE_DELAY * 2 ** attempt;
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
-      }
-      throw new Error("Max retries exceeded");
-    },
-    []
-  );
-
-  /**
    * Handle SSE events with type-safe pattern matching
    */
   const handleSSEEvent = useCallback(
@@ -254,7 +222,7 @@ export function useDebateStream({
         case "error": {
           const errorMessage = data.message || "An error occurred";
           setError(errorMessage);
-          setStatus(`Error: ${errorMessage}`);
+          setStatus(`Error: ${errorMessage} `);
 
           // Clear API key on OpenRouter errors (including 402 credit errors)
           if (
@@ -319,55 +287,19 @@ export function useDebateStream({
       let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 
       try {
-        // Step 1: Generate title
+        // Step 1: Generate title using API client
         setStatus("Generating title...");
         let generatedTitle: string | null = null;
 
         try {
-          const titleResponse = await fetchWithRetry(
-            `${getApiBaseUrl()}/api/debate/generate-title`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                topic,
-                api_key: apiKey,
-              }),
-              signal: abortController.signal,
-            }
-          );
+          const titleResult = await apiClient.generateTitle(topic, apiKey, abortController.signal);
 
-          if (titleResponse.ok) {
-            try {
-              const titleData = await titleResponse.json();
-              if (titleData?.title && typeof titleData.title === "string") {
-                const cleanedTitle = cleanString(titleData.title);
-                generatedTitle = cleanedTitle;
-                setDisplayTopic(cleanedTitle);
-                setStatus("Title generated. Starting debate...");
-              } else {
-                console.warn(
-                  "Title generation response missing title field, using fallback",
-                  titleData
-                );
-                generatedTitle = generateFallbackTitle(topic);
-                setDisplayTopic(generatedTitle);
-                setStatus("Starting debate...");
-              }
-            } catch (jsonError) {
-              console.warn("Failed to parse title response JSON, using fallback:", jsonError);
-              generatedTitle = generateFallbackTitle(topic);
-              setDisplayTopic(generatedTitle);
-              setStatus("Starting debate...");
-            }
+          if (titleResult) {
+            const cleanedTitle = cleanString(titleResult);
+            generatedTitle = cleanedTitle;
+            setDisplayTopic(cleanedTitle);
+            setStatus("Title generated. Starting debate...");
           } else {
-            console.warn(
-              "Title generation failed with status:",
-              titleResponse.status,
-              "using fallback"
-            );
             generatedTitle = generateFallbackTitle(topic);
             setDisplayTopic(generatedTitle);
             setStatus("Starting debate...");
@@ -388,49 +320,28 @@ export function useDebateStream({
           setDisplayTopic(generatedTitle);
         }
 
-        // Step 2: Start debate with SSE streaming
-        const response = await fetchWithRetry(`${getApiBaseUrl()}/api/debate/start`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            topic,
-            yesModel,
-            noModel,
-            rounds: parseInt(rounds || "3", 10),
-            judgePrompt: judgePrompt || "",
-            title: generatedTitle,
-            api_key: apiKey,
-          }),
-          signal: abortController.signal,
+        // Step 2: Start debate with SSE streaming using API client
+        const startConfig = createDebateStartConfig({
+          topic,
+          yesModel,
+          noModel,
+          rounds,
+          judgePrompt,
+          title: generatedTitle,
+          apiKey,
         });
 
-        if (!response.ok) {
-          let errorText = "";
-          try {
-            errorText = await response.text();
-          } catch {
-            errorText = "Unknown error";
+        let response: Response;
+        try {
+          response = await apiClient.startDebateStream(startConfig, abortController.signal);
+        } catch (err) {
+          if (err instanceof ApiError) {
+            if (err.isAuthError) {
+              clearApiKey?.();
+            }
+            throw err;
           }
-
-          let errorMessage = `HTTP error! status: ${response.status}`;
-
-          if (
-            response.status === 401 ||
-            response.status === 403 ||
-            errorText.includes("API key") ||
-            errorText.includes("OpenRouter") ||
-            errorText.includes("authentication") ||
-            errorText.includes("unauthorized")
-          ) {
-            errorMessage = `Authentication error: Invalid or missing API key. Please check your API key.`;
-            clearApiKey?.();
-          } else if (errorText) {
-            errorMessage = `${errorMessage}: ${errorText.substring(0, DEBATE_CONFIG.ERROR_MESSAGE_MAX_LENGTH)}`;
-          }
-
-          throw new Error(errorMessage);
+          throw err;
         }
 
         reader = response.body?.getReader() || null;
@@ -493,16 +404,7 @@ export function useDebateStream({
         onError?.(errorMessage);
       }
     },
-    [
-      debateId,
-      fetchWithRetry,
-      handleSSEEvent,
-      clearApiKey,
-      onError,
-      getItem,
-      setItem,
-      generateFallbackTitle,
-    ]
+    [debateId, handleSSEEvent, clearApiKey, onError, getItem, setItem, generateFallbackTitle]
   );
 
   // Keep the ref updated with the latest callback

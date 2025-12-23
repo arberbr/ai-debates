@@ -3,7 +3,10 @@
  */
 
 /**
- * Cleans markdown formatting from titles
+ * Cleans markdown formatting and artifacts from strings (typically titles).
+ * Removes bold/italic markers, quotes, and leading/trailing whitespace.
+ * @param title - The string to clean
+ * @returns The cleaned string
  */
 export function cleanString(title: string): string {
   let cleaned = title.trim();

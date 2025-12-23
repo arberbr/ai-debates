@@ -3,10 +3,18 @@ import { STORAGE_KEYS } from "@/lib/constants";
 import type { SavedDebate } from "@/lib/types";
 import { useLocalStorage } from "./useLocalStorage";
 
+/**
+ * Custom hook for managing saved debates in localStorage.
+ * Handles loading, saving, deletion, and cross-tab synchronization.
+ * @returns Object containing debates list and management functions
+ */
 export function useDebates() {
   const [debates, setDebates] = useState<SavedDebate[]>([]);
-  const { getItem, setItem } = useLocalStorage();
+  const { getItem, setItem, checkQuotaBeforeWrite, getStorageStats } = useLocalStorage();
 
+  /**
+   * Load debates from localStorage
+   */
   const loadDebates = useCallback(() => {
     const saved = getItem<SavedDebate[]>(STORAGE_KEYS.SAVED_DEBATES, []);
     if (saved && Array.isArray(saved)) {
@@ -18,11 +26,24 @@ export function useDebates() {
     }
   }, [getItem]);
 
+  /**
+   * Save a debate to localStorage.
+   * Updates state and handles quota limits proactively.
+   * @param debate - The debate object to save
+   * @returns Object containing optional warning message if storage is filling up
+   * @throws Error if storage quota is exceeded
+   */
   const saveDebate = useCallback(
-    (debate: SavedDebate) => {
+    (debate: SavedDebate): { warning: string | null } => {
       try {
         const existingDebates = getItem<SavedDebate[]>(STORAGE_KEYS.SAVED_DEBATES, []);
         const debates: SavedDebate[] = existingDebates || [];
+
+        // Proactively check if we can fit this debate
+        const { canWrite, warning } = checkQuotaBeforeWrite(debate);
+        if (!canWrite) {
+          throw new Error("Storage limit reached. Please delete some debates to free up space.");
+        }
 
         const existingIndex = debates.findIndex((d) => d.debateId === debate.debateId);
         if (existingIndex >= 0) {
@@ -38,6 +59,9 @@ export function useDebates() {
 
         // Also trigger loadDebates directly for immediate update
         loadDebates();
+
+        // Return warning if storage is getting full
+        return { warning };
       } catch (e) {
         if (e instanceof Error && e.name === "QuotaExceededError") {
           console.error("Storage quota exceeded:", e);
@@ -48,9 +72,14 @@ export function useDebates() {
         throw e;
       }
     },
-    [getItem, setItem, loadDebates]
+    [getItem, setItem, loadDebates, checkQuotaBeforeWrite]
   );
 
+  /**
+   * Delete a debate from localStorage by ID.
+   * Updates state immediately to reflect change.
+   * @param debateId - The ID of the debate to delete
+   */
   const deleteDebate = useCallback(
     (debateId: string) => {
       try {
@@ -112,5 +141,5 @@ export function useDebates() {
     };
   }, [loadDebates]);
 
-  return { debates, loadDebates, saveDebate, deleteDebate };
+  return { debates, loadDebates, saveDebate, deleteDebate, getStorageStats };
 }

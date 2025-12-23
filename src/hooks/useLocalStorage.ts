@@ -94,11 +94,101 @@ export function useLocalStorage() {
     }
   }, []);
 
+  /**
+   * Get storage usage statistics
+   * @returns Object with current usage in bytes, estimated quota, and usage percentage
+   */
+  const getStorageStats = useCallback((): {
+    usedBytes: number;
+    estimatedQuotaBytes: number;
+    usagePercent: number;
+    formattedUsed: string;
+    formattedQuota: string;
+  } => {
+    try {
+      let usedBytes = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          const value = localStorage.getItem(key);
+          // Calculate size: key + value in UTF-16 (2 bytes per character)
+          usedBytes += (key.length + (value?.length || 0)) * 2;
+        }
+      }
+
+      // Most browsers allow ~5-10 MB for localStorage
+      // We use 5MB as a conservative estimate
+      const estimatedQuotaBytes = 5 * 1024 * 1024;
+      const usagePercent = Math.round((usedBytes / estimatedQuotaBytes) * 100);
+
+      const formatBytes = (bytes: number): string => {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+      };
+
+      return {
+        usedBytes,
+        estimatedQuotaBytes,
+        usagePercent,
+        formattedUsed: formatBytes(usedBytes),
+        formattedQuota: formatBytes(estimatedQuotaBytes),
+      };
+    } catch (e) {
+      console.error("Error calculating storage stats:", e);
+      return {
+        usedBytes: 0,
+        estimatedQuotaBytes: 5 * 1024 * 1024,
+        usagePercent: 0,
+        formattedUsed: "0 B",
+        formattedQuota: "5 MB",
+      };
+    }
+  }, []);
+
+  /**
+   * Check if storage can accommodate new data before writing
+   * @param dataSize - Size of data to write in bytes (or provide value to calculate)
+   * @param value - Alternative: provide value to calculate size automatically
+   * @returns Object with canWrite boolean and warning if approaching limit
+   */
+  const checkQuotaBeforeWrite = useCallback(
+    <T>(
+      value: T
+    ): {
+      canWrite: boolean;
+      warning: string | null;
+      estimatedNewUsage: number;
+    } => {
+      const stats = getStorageStats();
+      const serialized = typeof value === "string" ? value : JSON.stringify(value);
+      const dataSize = serialized.length * 2; // UTF-16 encoding
+      const newTotal = stats.usedBytes + dataSize;
+      const newUsagePercent = Math.round((newTotal / stats.estimatedQuotaBytes) * 100);
+
+      let warning: string | null = null;
+      if (newUsagePercent >= 90) {
+        warning = "Storage is almost full. Consider deleting old debates to free up space.";
+      } else if (newUsagePercent >= 75) {
+        warning = "Storage is getting full. You may want to delete some old debates.";
+      }
+
+      return {
+        canWrite: newTotal < stats.estimatedQuotaBytes,
+        warning,
+        estimatedNewUsage: newUsagePercent,
+      };
+    },
+    [getStorageStats]
+  );
+
   return {
     getItem,
     setItem,
     removeItem,
     clear,
     getItemRaw,
+    getStorageStats,
+    checkQuotaBeforeWrite,
   };
 }
