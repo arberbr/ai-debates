@@ -25,6 +25,10 @@ export const DEBATE_CONFIG = {
   MAX_ROUNDS: 5,
   MIN_ROUNDS: 1,
   WORDS_PER_MINUTE: 200,
+  /** Maximum length for topic fallback title */
+  FALLBACK_TITLE_LENGTH: 80,
+  /** Maximum length for error message display */
+  ERROR_MESSAGE_MAX_LENGTH: 200,
 } as const;
 
 /**

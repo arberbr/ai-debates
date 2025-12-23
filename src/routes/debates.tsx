@@ -3,62 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useDebates } from "@/hooks/useDebates";
-import { MODEL_OPTIONS } from "@/lib/constants";
 import { cleanString } from "@/lib/debate-utils";
-import { calculateTotalReadingTimeForSide, formatDate24Hour } from "@/lib/utils";
+import { calculateTotalReadingTimeForSide, formatDate24Hour, getModelName } from "@/lib/utils";
 
 function DebatesComponent() {
   const navigate = useNavigate();
   const { debates: savedDebates, deleteDebate } = useDebates();
-
-  const getModelName = (slug: string) => {
-    const model = MODEL_OPTIONS.find((m) => m.slug === slug);
-    return model ? model.name : slug;
-  };
-
-  // Color palette for debate cards (with dark mode support)
-  const cardColors = [
-    {
-      bg: "bg-blue-50 dark:bg-blue-950/30",
-      border: "border-blue-200 dark:border-blue-800/50",
-      text: "text-blue-900 dark:text-blue-100",
-    },
-    {
-      bg: "bg-purple-50 dark:bg-purple-950/30",
-      border: "border-purple-200 dark:border-purple-800/50",
-      text: "text-purple-900 dark:text-purple-100",
-    },
-    {
-      bg: "bg-green-50 dark:bg-green-950/30",
-      border: "border-green-200 dark:border-green-800/50",
-      text: "text-green-900 dark:text-green-100",
-    },
-    {
-      bg: "bg-yellow-50 dark:bg-yellow-950/30",
-      border: "border-yellow-200 dark:border-yellow-800/50",
-      text: "text-yellow-900 dark:text-yellow-100",
-    },
-    {
-      bg: "bg-pink-50 dark:bg-pink-950/30",
-      border: "border-pink-200 dark:border-pink-800/50",
-      text: "text-pink-900 dark:text-pink-100",
-    },
-    {
-      bg: "bg-indigo-50 dark:bg-indigo-950/30",
-      border: "border-indigo-200 dark:border-indigo-800/50",
-      text: "text-indigo-900 dark:text-indigo-100",
-    },
-    {
-      bg: "bg-orange-50 dark:bg-orange-950/30",
-      border: "border-orange-200 dark:border-orange-800/50",
-      text: "text-orange-900 dark:text-orange-100",
-    },
-    {
-      bg: "bg-teal-50 dark:bg-teal-950/30",
-      border: "border-teal-200 dark:border-teal-800/50",
-      text: "text-teal-900 dark:text-teal-100",
-    },
-  ];
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
@@ -79,8 +29,7 @@ function DebatesComponent() {
               </p>
             </div>
             <div className="grid grid-cols-1 gap-4">
-              {savedDebates.map((debate, index) => {
-                const colorScheme = cardColors[index % cardColors.length];
+              {savedDebates.map((debate) => {
                 const formattedDate = formatDate24Hour(debate.timestamp);
                 const yesReadingTime = calculateTotalReadingTimeForSide(debate, "yes");
                 const noReadingTime = calculateTotalReadingTimeForSide(debate, "no");
@@ -92,15 +41,26 @@ function DebatesComponent() {
                   });
                 };
 
+                const handleKeyDown = (e: React.KeyboardEvent) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleCardClick();
+                  }
+                };
+
                 return (
                   <Card
                     key={debate.debateId}
-                    className={`${colorScheme.bg} ${colorScheme.border} border-2 cursor-pointer`}
+                    className={`border-0 cursor-pointer`}
                     onClick={handleCardClick}
+                    onKeyDown={handleKeyDown}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`View debate: ${cleanString(debate.topic || "Untitled Debate")}`}
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between gap-2">
-                        <CardTitle className={`text-lg ${colorScheme.text} line-clamp-2`}>
+                        <CardTitle className={`text-lg line-clamp-2`}>
                           {cleanString(debate.topic || "Untitled Debate")}
                         </CardTitle>
                         <Button
@@ -123,7 +83,7 @@ function DebatesComponent() {
                         </Button>
                       </div>
                     </CardHeader>
-                    <CardContent className={`${colorScheme.text} space-y-2`}>
+                    <CardContent className={`space-y-2`}>
                       <div className="text-sm">
                         <div className="font-semibold mb-1">Models:</div>
                         <div className="text-xs space-y-1">
@@ -150,7 +110,7 @@ function DebatesComponent() {
                         </div>
                       )}
                       {debate.usage && (
-                        <div className="text-sm pt-2 border-t border-current/20 dark:border-current/30">
+                        <div className="text-sm pt-2">
                           <div className="font-semibold mb-1">Usage:</div>
                           <div className="text-xs space-y-1">
                             <div className="flex items-center justify-between gap-2">

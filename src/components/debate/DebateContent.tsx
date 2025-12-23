@@ -19,62 +19,88 @@ export const DebateContent = ({
   return (
     <div className="border rounded-lg min-h-[400px] bg-muted/30 space-y-6">
       {!openingStatements && debateRounds.length === 0 && !conclusions && !error && (
-        <div className="flex items-center justify-center h-full min-h-[300px]">
+        <output
+          className="flex items-center justify-center h-full min-h-[300px]"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4" />
+            <div
+              className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"
+              aria-hidden="true"
+            />
             <p className="text-center text-muted-foreground text-lg">
               {status || "Waiting for debate to start..."}
             </p>
+            <span className="sr-only">
+              Loading debate content: {status || "Waiting for debate to start..."}
+            </span>
           </div>
-        </div>
+        </output>
       )}
 
       {/* Opening Statements */}
       {openingStatements && (
-        <div className="space-y-4 border-b border-border/50 pb-6">
+        <section
+          className="space-y-4 border-b border-border/50 pb-6"
+          aria-labelledby="opening-statements-heading"
+        >
           <div className="flex items-center gap-2">
-            <div className="px-3 py-1 bg-primary/10 text-primary font-semibold rounded-full text-sm">
+            <h2
+              id="opening-statements-heading"
+              className="px-3 py-1 bg-primary/10 text-primary font-semibold rounded-full text-sm"
+            >
               Opening Statements
-            </div>
+            </h2>
           </div>
           <div className="space-y-4">
             <DebateMessageCard message={openingStatements.yesStatement} side="yes" />
             <DebateMessageCard message={openingStatements.noStatement} side="no" />
           </div>
-        </div>
+        </section>
       )}
 
       {/* Rebuttal Rounds */}
       {debateRounds.map((round) => (
-        <div
+        <section
           key={round.round}
           className="space-y-4 border-b border-border/50 pb-6 last:border-b-0 last:pb-0"
+          aria-labelledby={`round-${round.round}-heading`}
         >
           <div className="flex items-center gap-2">
-            <div className="px-3 py-1 bg-primary/10 text-primary font-semibold rounded-full text-sm">
+            <h2
+              id={`round-${round.round}-heading`}
+              className="px-3 py-1 bg-primary/10 text-primary font-semibold rounded-full text-sm"
+            >
               Round {round.round}
-            </div>
+            </h2>
           </div>
           <div className="space-y-4">
             <DebateMessageCard message={round.yesMessage} side="yes" />
             <DebateMessageCard message={round.noMessage} side="no" />
           </div>
-        </div>
+        </section>
       ))}
 
       {/* Conclusions */}
       {conclusions && (
-        <div className="space-y-4 border-t border-border/50 pt-6 mt-6">
+        <section
+          className="space-y-4 border-t border-border/50 pt-6 mt-6"
+          aria-labelledby="conclusions-heading"
+        >
           <div className="flex items-center gap-2">
-            <div className="px-3 py-1 bg-primary/10 text-primary font-semibold rounded-full text-sm">
+            <h2
+              id="conclusions-heading"
+              className="px-3 py-1 bg-primary/10 text-primary font-semibold rounded-full text-sm"
+            >
               Conclusions
-            </div>
+            </h2>
           </div>
           <div className="space-y-4">
             <DebateMessageCard message={conclusions.yesConclusion} side="yes" />
             <DebateMessageCard message={conclusions.noConclusion} side="no" />
           </div>
-        </div>
+        </section>
       )}
     </div>
   );

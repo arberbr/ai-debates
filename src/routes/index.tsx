@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiKey } from "@/hooks/useApiKey";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { DEBATE_CONFIG, MODEL_OPTIONS, STORAGE_KEYS, TIMING } from "@/lib/constants";
 
 function IndexComponent() {
@@ -21,6 +23,7 @@ function IndexComponent() {
   const { apiKey, showApiKeyField, setShowApiKeyField, updateApiKey, saveApiKey, hasApiKey } =
     useApiKey();
   const [isCardUnmounting, setIsCardUnmounting] = useState(false);
+  const { getItemRaw, setItem, getItem } = useLocalStorage();
 
   const handleApiKeyChange = (value: string) => {
     updateApiKey(value);
@@ -42,6 +45,11 @@ function IndexComponent() {
   };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{
+    topic?: string;
+    yesModel?: string;
+    noModel?: string;
+  }>({});
 
   const form = useForm({
     defaultValues: {
@@ -53,34 +61,42 @@ function IndexComponent() {
     },
     onSubmit: async ({ value }) => {
       setIsSubmitting(true);
+      setFieldErrors({});
+
       try {
         // Validate required fields - trim to handle whitespace
         const topic = value.topic?.trim() || "";
         const yesModel = value.yesModel?.trim() || "";
         const noModel = value.noModel?.trim() || "";
 
-        if (!topic || !yesModel || !noModel) {
-          const missingFields = [];
-          if (!topic) missingFields.push("topic");
-          if (!yesModel) missingFields.push("yes model");
-          if (!noModel) missingFields.push("no model");
-          toast.error(`Please fill in all required fields: ${missingFields.join(", ")}`);
-          return;
+        const errors: typeof fieldErrors = {};
+
+        if (!topic) {
+          errors.topic = "Debate topic is required";
+        } else if (topic.length > DEBATE_CONFIG.MAX_TOPIC_LENGTH) {
+          errors.topic = `Topic must be ${DEBATE_CONFIG.MAX_TOPIC_LENGTH} characters or less`;
         }
 
-        // Validate topic length
-        if (topic.length > DEBATE_CONFIG.MAX_TOPIC_LENGTH) {
-          toast.error(
-            `Topic must be ${DEBATE_CONFIG.MAX_TOPIC_LENGTH} characters or less. Please shorten your topic.`
-          );
+        if (!yesModel) {
+          errors.yesModel = "Please select a model for the Yes side";
+        }
+
+        if (!noModel) {
+          errors.noModel = "Please select a model for the No side";
+        }
+
+        if (Object.keys(errors).length > 0) {
+          setFieldErrors(errors);
+          toast.error("Please fix the errors in the form");
           return;
         }
 
         // Validate API key
-        const currentApiKey = localStorage.getItem(STORAGE_KEYS.API_KEY);
+        const currentApiKey = getItemRaw(STORAGE_KEYS.API_KEY);
         if (!currentApiKey || !currentApiKey.trim()) {
           toast.error("Please enter your OpenRouter API key");
           setShowApiKeyField(true);
+          setIsSubmitting(false);
           return;
         }
 
@@ -99,14 +115,24 @@ function IndexComponent() {
         };
 
         // Store in a temporary key that will be used when the debate page loads
-        const pendingDebates = JSON.parse(
-          localStorage.getItem(STORAGE_KEYS.PENDING_DEBATES) || "{}"
-        );
-        pendingDebates[debateId] = debateConfig;
-        localStorage.setItem(STORAGE_KEYS.PENDING_DEBATES, JSON.stringify(pendingDebates));
+        try {
+          const pendingDebates = getItem<Record<string, typeof debateConfig>>(
+            STORAGE_KEYS.PENDING_DEBATES,
+            {}
+          );
+          const updated = { ...pendingDebates, [debateId]: debateConfig };
+          setItem(STORAGE_KEYS.PENDING_DEBATES, updated);
+        } catch (e) {
+          if (e instanceof Error && e.name === "QuotaExceededError") {
+            toast.error("Storage limit reached. Please delete some debates to free up space.");
+            return;
+          }
+          throw e;
+        }
 
         // Verify it was saved
-        const verify = JSON.parse(localStorage.getItem(STORAGE_KEYS.PENDING_DEBATES) || "{}");
+        const verify =
+          getItem<Record<string, typeof debateConfig>>(STORAGE_KEYS.PENDING_DEBATES, {}) ?? {};
         if (!verify[debateId]) {
           console.error("Failed to save debate config to localStorage");
           toast.error("Failed to save debate configuration. Please try again.");
@@ -175,37 +201,52 @@ function IndexComponent() {
                   const charCount = topicValue.length;
                   const maxChars = DEBATE_CONFIG.MAX_TOPIC_LENGTH;
                   const isOverLimit = charCount > maxChars;
+                  const hasError = !!fieldErrors.topic || isOverLimit;
+                  const errorId = "topic-error";
+                  const countId = "topic-count";
+                  const describedBy = hasError ? `${errorId} ${countId}` : countId;
 
                   return (
                     <div className="flex flex-col gap-2">
+                      <Label htmlFor="debate-topic">Debate Topic</Label>
                       <Textarea
                         id="debate-topic"
                         aria-label="Debate topic"
-                        aria-describedby={isOverLimit ? "topic-error" : "topic-count"}
-                        className={`w-full ${isOverLimit ? "border-red-500" : ""}`}
+                        aria-describedby={describedBy}
+                        aria-invalid={hasError}
+                        aria-errormessage={hasError ? errorId : undefined}
+                        className={`w-full ${hasError ? "border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500" : ""}`}
                         placeholder={`Enter the debate topic (max ${DEBATE_CONFIG.MAX_TOPIC_LENGTH} characters)`}
                         rows={4}
                         value={field.state.value}
                         onChange={(e) => {
                           const value = e.target.value;
-                          // Allow typing but validation happens on submit
                           field.handleChange(value);
+                          // Clear error when user starts typing
+                          if (fieldErrors.topic) {
+                            setFieldErrors((prev) => ({ ...prev, topic: undefined }));
+                          }
                         }}
                         onBlur={field.handleBlur}
                       />
                       <div
-                        id={isOverLimit ? "topic-error" : "topic-count"}
-                        className={`text-sm ${isOverLimit ? "text-red-500" : "text-muted-foreground"}`}
-                        role={isOverLimit ? "alert" : "status"}
+                        id={countId}
+                        className="text-sm text-muted-foreground"
+                        aria-live="polite"
                       >
                         {charCount} / {maxChars} characters
-                        {isOverLimit && (
-                          <span className="ml-2 font-semibold">
-                            Topic is too long. Please shorten it to {DEBATE_CONFIG.MAX_TOPIC_LENGTH}{" "}
-                            characters or less.
-                          </span>
-                        )}
                       </div>
+                      {hasError && (
+                        <div
+                          id={errorId}
+                          className="text-sm text-red-600 dark:text-red-400 font-semibold"
+                          role="alert"
+                          aria-live="assertive"
+                        >
+                          {fieldErrors.topic ||
+                            `Topic is too long. Please shorten it to ${DEBATE_CONFIG.MAX_TOPIC_LENGTH} characters or less.`}
+                        </div>
+                      )}
                     </div>
                   );
                 }}
@@ -220,61 +261,107 @@ function IndexComponent() {
             <CardContent>
               <div className="flex gap-3 w-full flex-wrap">
                 <form.Field name="yesModel">
-                  {(field) => (
-                    <div className="flex-1 flex flex-col gap-3 min-w-[200px]">
-                      <Select
-                        value={field.state.value || ""}
-                        onValueChange={(value) => {
-                          field.handleChange(value);
-                          field.handleBlur();
-                        }}
-                      >
-                        <SelectTrigger
-                          id="yes-model"
-                          aria-label="Select model for Yes side"
-                          className="w-full"
+                  {(field) => {
+                    const hasError = !!fieldErrors.yesModel;
+                    const errorId = "yes-model-error";
+
+                    return (
+                      <div className="flex-1 flex flex-col gap-3 min-w-[200px]">
+                        <Label htmlFor="yes-model">Model for Yes Side</Label>
+                        <Select
+                          value={field.state.value || ""}
+                          onValueChange={(value) => {
+                            field.handleChange(value);
+                            field.handleBlur();
+                            // Clear error when user selects a model
+                            if (fieldErrors.yesModel) {
+                              setFieldErrors((prev) => ({ ...prev, yesModel: undefined }));
+                            }
+                          }}
                         >
-                          <SelectValue placeholder="Select model for Yes" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {MODEL_OPTIONS.map((model) => (
-                            <SelectItem key={`yes-${model.slug}`} value={model.slug}>
-                              {model.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                          <SelectTrigger
+                            id="yes-model"
+                            aria-label="Select model for Yes side"
+                            aria-describedby={hasError ? errorId : undefined}
+                            aria-invalid={hasError}
+                            aria-errormessage={hasError ? errorId : undefined}
+                            className={`w-full ${hasError ? "border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500" : ""}`}
+                          >
+                            <SelectValue placeholder="Select model for Yes" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MODEL_OPTIONS.map((model) => (
+                              <SelectItem key={`yes-${model.slug}`} value={model.slug}>
+                                {model.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {hasError && (
+                          <div
+                            id={errorId}
+                            className="text-sm text-red-600 dark:text-red-400 font-semibold"
+                            role="alert"
+                            aria-live="assertive"
+                          >
+                            {fieldErrors.yesModel}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }}
                 </form.Field>
 
                 <form.Field name="noModel">
-                  {(field) => (
-                    <div className="flex-1 flex flex-col gap-3 min-w-[200px]">
-                      <Select
-                        value={field.state.value || ""}
-                        onValueChange={(value) => {
-                          field.handleChange(value);
-                          field.handleBlur();
-                        }}
-                      >
-                        <SelectTrigger
-                          id="no-model"
-                          aria-label="Select model for No side"
-                          className="w-full"
+                  {(field) => {
+                    const hasError = !!fieldErrors.noModel;
+                    const errorId = "no-model-error";
+
+                    return (
+                      <div className="flex-1 flex flex-col gap-3 min-w-[200px]">
+                        <Label htmlFor="no-model">Model for No Side</Label>
+                        <Select
+                          value={field.state.value || ""}
+                          onValueChange={(value) => {
+                            field.handleChange(value);
+                            field.handleBlur();
+                            // Clear error when user selects a model
+                            if (fieldErrors.noModel) {
+                              setFieldErrors((prev) => ({ ...prev, noModel: undefined }));
+                            }
+                          }}
                         >
-                          <SelectValue placeholder="Select model for No" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {MODEL_OPTIONS.map((model) => (
-                            <SelectItem key={`no-${model.slug}`} value={model.slug}>
-                              {model.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                          <SelectTrigger
+                            id="no-model"
+                            aria-label="Select model for No side"
+                            aria-describedby={hasError ? errorId : undefined}
+                            aria-invalid={hasError}
+                            aria-errormessage={hasError ? errorId : undefined}
+                            className={`w-full ${hasError ? "border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500" : ""}`}
+                          >
+                            <SelectValue placeholder="Select model for No" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MODEL_OPTIONS.map((model) => (
+                              <SelectItem key={`no-${model.slug}`} value={model.slug}>
+                                {model.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {hasError && (
+                          <div
+                            id={errorId}
+                            className="text-sm text-red-600 dark:text-red-400 font-semibold"
+                            role="alert"
+                            aria-live="assertive"
+                          >
+                            {fieldErrors.noModel}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }}
                 </form.Field>
               </div>
             </CardContent>
@@ -292,10 +379,12 @@ function IndexComponent() {
 
                   return (
                     <div className="flex flex-col gap-2">
+                      <Label htmlFor="rounds">Number of Rounds</Label>
                       <Input
                         id="rounds"
                         type="number"
                         aria-label="Number of debate rounds"
+                        aria-describedby={isOverRecommended ? "rounds-warning" : undefined}
                         min={DEBATE_CONFIG.MIN_ROUNDS.toString()}
                         max={DEBATE_CONFIG.MAX_ROUNDS.toString()}
                         step="1"
@@ -306,7 +395,11 @@ function IndexComponent() {
                         className="w-full"
                       />
                       {isOverRecommended && (
-                        <p className="text-sm text-amber-600 font-semibold">
+                        <p
+                          id="rounds-warning"
+                          className="text-sm text-amber-700 dark:text-amber-400 font-semibold"
+                          aria-live="polite"
+                        >
                           ⚠️ Warning: More than 3 rounds may significantly increase token usage and
                           costs.
                         </p>

@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { MODEL_OPTIONS } from "./constants";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -78,6 +79,16 @@ export function formatDate24Hour(date: Date | string): string {
   const seconds = String(dateObj.getSeconds()).padStart(2, "0");
 
   return `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`;
+}
+
+/**
+ * Gets the display name for a model by its slug
+ * @param slug - Model slug (e.g., "anthropic/claude-sonnet-4.5")
+ * @returns Display name if found, otherwise returns the slug
+ */
+export function getModelName(slug: string): string {
+  const model = MODEL_OPTIONS.find((m) => m.slug === slug);
+  return model ? model.name : slug;
 }
 
 /**

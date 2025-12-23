@@ -14,15 +14,27 @@ export const JudgeEvaluationCard = ({ evaluation }: JudgeEvaluationCardProps) =>
   }[evaluation.winner || "tie"];
 
   return (
-    <Card className="p-6 border-2 border-border/60 transition-all bg-card/50 backdrop-blur-sm">
+    <Card
+      className="p-6 border-2 border-border/60 transition-all bg-card/50 backdrop-blur-sm"
+      role="article"
+      aria-labelledby={`judge-evaluation-${evaluation.judgeModel}-heading`}
+    >
       <div className="space-y-6">
         {/* Header Section */}
         <div className="flex items-center justify-between flex-wrap gap-4 pb-4 border-b-2 border-border/40">
           <div className="flex items-center gap-3">
-            <div className="px-4 py-1.5 bg-primary/15 text-primary font-bold rounded-lg text-sm border border-primary/20">
+            <div
+              className="px-4 py-1.5 bg-primary/15 text-primary font-bold rounded-lg text-sm border border-primary/20"
+              title="Judge"
+            >
               Judge
             </div>
-            <div className="font-semibold text-base text-foreground">{evaluation.judgeModel}</div>
+            <h3
+              id={`judge-evaluation-${evaluation.judgeModel}-heading`}
+              className="font-semibold text-base text-foreground"
+            >
+              {evaluation.judgeModel}
+            </h3>
           </div>
           {evaluation.winner && (
             <div className={`px-5 py-2 rounded-lg font-bold text-sm ${winnerColor}`}>
@@ -55,16 +67,19 @@ export const JudgeEvaluationCard = ({ evaluation }: JudgeEvaluationCardProps) =>
         )}
 
         {/* Evaluation Text Section */}
-        <div className="pt-4">
-          <div className="text-base font-bold text-foreground mb-4 pb-2 border-b border-border/30">
+        <section className="pt-4" aria-labelledby={`evaluation-${evaluation.judgeModel}-heading`}>
+          <h4
+            id={`evaluation-${evaluation.judgeModel}-heading`}
+            className="text-base font-bold text-foreground mb-4 pb-2 border-b border-border/30"
+          >
             Evaluation
-          </div>
+          </h4>
           <div className="prose prose-base dark:prose-invert max-w-none">
             <div className="text-[15px] leading-7 text-foreground/95 space-y-4 px-2">
               <MarkdownContent content={evaluation.reasoning || evaluation.evaluation} />
             </div>
           </div>
-        </div>
+        </section>
       </div>
     </Card>
   );

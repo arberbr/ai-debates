@@ -1,60 +1,72 @@
 import { useCallback, useEffect, useState } from "react";
 import { STORAGE_KEYS } from "@/lib/constants";
 import type { SavedDebate } from "@/lib/types";
+import { useLocalStorage } from "./useLocalStorage";
 
 export function useDebates() {
   const [debates, setDebates] = useState<SavedDebate[]>([]);
+  const { getItem, setItem } = useLocalStorage();
 
   const loadDebates = useCallback(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.SAVED_DEBATES);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as SavedDebate[];
-        // Sort by timestamp, most recent first
-        parsed.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        setDebates(parsed);
-      } catch (e) {
-        console.error("Error loading saved debates:", e);
-        setDebates([]);
-      }
+    const saved = getItem<SavedDebate[]>(STORAGE_KEYS.SAVED_DEBATES, []);
+    if (saved && Array.isArray(saved)) {
+      // Sort by timestamp, most recent first
+      saved.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setDebates(saved);
     } else {
       setDebates([]);
     }
-  }, []);
+  }, [getItem]);
 
   const saveDebate = useCallback(
     (debate: SavedDebate) => {
-      const existingDebates = localStorage.getItem(STORAGE_KEYS.SAVED_DEBATES);
-      const debates: SavedDebate[] = existingDebates ? JSON.parse(existingDebates) : [];
+      try {
+        const existingDebates = getItem<SavedDebate[]>(STORAGE_KEYS.SAVED_DEBATES, []);
+        const debates: SavedDebate[] = existingDebates || [];
 
-      const existingIndex = debates.findIndex((d) => d.debateId === debate.debateId);
-      if (existingIndex >= 0) {
-        debates[existingIndex] = debate;
-      } else {
-        debates.push(debate);
+        const existingIndex = debates.findIndex((d) => d.debateId === debate.debateId);
+        if (existingIndex >= 0) {
+          debates[existingIndex] = debate;
+        } else {
+          debates.push(debate);
+        }
+
+        setItem(STORAGE_KEYS.SAVED_DEBATES, debates);
+
+        // Dispatch custom event for same-tab listeners
+        window.dispatchEvent(new Event("customStorageChange"));
+
+        // Also trigger loadDebates directly for immediate update
+        loadDebates();
+      } catch (e) {
+        if (e instanceof Error && e.name === "QuotaExceededError") {
+          console.error("Storage quota exceeded:", e);
+          // Note: We can't use toast here as this is a hook, caller should handle UI feedback
+          throw new Error("Storage limit reached. Please delete some debates to free up space.");
+        }
+        console.error("Error saving debate:", e);
+        throw e;
       }
-
-      localStorage.setItem(STORAGE_KEYS.SAVED_DEBATES, JSON.stringify(debates));
-
-      // Dispatch custom event for same-tab listeners
-      window.dispatchEvent(new Event("customStorageChange"));
-
-      // Also trigger loadDebates directly for immediate update
-      loadDebates();
     },
-    [loadDebates]
+    [getItem, setItem, loadDebates]
   );
 
   const deleteDebate = useCallback(
     (debateId: string) => {
-      const updated = debates.filter((d) => d.debateId !== debateId);
-      setDebates(updated);
-      localStorage.setItem(STORAGE_KEYS.SAVED_DEBATES, JSON.stringify(updated));
+      try {
+        const updated = debates.filter((d) => d.debateId !== debateId);
+        setDebates(updated);
+        setItem(STORAGE_KEYS.SAVED_DEBATES, updated);
 
-      // Dispatch custom event for same-tab listeners
-      window.dispatchEvent(new Event("customStorageChange"));
+        // Dispatch custom event for same-tab listeners
+        window.dispatchEvent(new Event("customStorageChange"));
+      } catch (e) {
+        console.error("Error deleting debate:", e);
+        // Re-throw so caller can handle UI feedback
+        throw e;
+      }
     },
-    [debates]
+    [debates, setItem]
   );
 
   useEffect(() => {

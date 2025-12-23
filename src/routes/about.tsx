@@ -478,7 +478,9 @@ function AboutComponent() {
         {/* Architecture */}
         <Card className="w-full">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-foreground">Technical Architecture</CardTitle>
+            <CardTitle className="text-2xl font-bold text-foreground">
+              Technical Architecture
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -500,8 +502,8 @@ function AboutComponent() {
                   <strong>Tailwind CSS</strong> for utility-first styling with dark mode support
                 </li>
                 <li>
-                  <strong>shadcn/ui</strong> components built on Radix UI primitives for
-                  accessible, customizable UI elements
+                  <strong>shadcn/ui</strong> components built on Radix UI primitives for accessible,
+                  customizable UI elements
                 </li>
                 <li>
                   <strong>react-markdown</strong> for rendering debate content with full markdown
@@ -519,19 +521,21 @@ function AboutComponent() {
               <h3 className="text-lg font-semibold text-foreground mb-2">State Management</h3>
               <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
                 <li>
-                  React hooks (<code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useState</code>,{" "}
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useEffect</code>) for local component state
+                  React hooks (
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useState</code>,{" "}
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useEffect</code>) for
+                  local component state
                 </li>
                 <li>
-                  Custom hooks (<code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useApiKey</code>,{" "}
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebates</code>) for shared state logic
+                  Custom hooks (
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useApiKey</code>,{" "}
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebates</code>) for
+                  shared state logic
                 </li>
                 <li>
                   <strong>localStorage</strong> for persistent data storage (API keys, debates)
                 </li>
-                <li>
-                  Cross-tab synchronization via Storage API events
-                </li>
+                <li>Cross-tab synchronization via Storage API events</li>
               </ul>
             </div>
             <div>
@@ -541,8 +545,8 @@ function AboutComponent() {
                   <strong>NestJS</strong> framework (Node.js) for the backend API
                 </li>
                 <li>
-                  <strong>OpenRouter API</strong> integration for unified LLM access across
-                  multiple providers
+                  <strong>OpenRouter API</strong> integration for unified LLM access across multiple
+                  providers
                 </li>
                 <li>
                   <strong>Server-Sent Events (SSE)</strong> for real-time streaming of debate
@@ -552,13 +556,13 @@ function AboutComponent() {
                   Parallel API calls where possible for efficiency (opening statements, rebuttals,
                   conclusions)
                 </li>
-                <li>
-                  Exponential backoff retry logic for resilient API calls
-                </li>
+                <li>Exponential backoff retry logic for resilient API calls</li>
               </ul>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Key Features & Patterns</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">
+                Key Features & Patterns
+              </h3>
               <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
                 <li>
                   <strong>Error Boundary</strong> component for graceful error handling
@@ -586,7 +590,9 @@ function AboutComponent() {
         {/* Component Structure */}
         <Card className="w-full">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-foreground">Component Architecture</CardTitle>
+            <CardTitle className="text-2xl font-bold text-foreground">
+              Component Architecture
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -610,24 +616,28 @@ function AboutComponent() {
                   Main container displaying opening statements, rounds, and conclusions
                 </li>
                 <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">DebateMessageCard</code> -
-                  Individual message cards for FOR/AGAINST sides with model info and reading time
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
+                    DebateMessageCard
+                  </code>{" "}
+                  - Individual message cards for FOR/AGAINST sides with model info and reading time
                 </li>
                 <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">FinalResultCard</code> -
-                  Displays final winner and aggregate scores
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">FinalResultCard</code>{" "}
+                  - Displays final winner and aggregate scores
                 </li>
                 <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">JudgeEvaluationCard</code> -
-                  Shows individual judge evaluations with scores and reasoning
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
+                    JudgeEvaluationCard
+                  </code>{" "}
+                  - Shows individual judge evaluations with scores and reasoning
                 </li>
                 <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">UsageStatsCard</code> -
-                  Token usage and cost statistics display
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">UsageStatsCard</code>{" "}
+                  - Token usage and cost statistics display
                 </li>
                 <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">MarkdownContent</code> -
-                  Custom markdown renderer with styled components
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">MarkdownContent</code>{" "}
+                  - Custom markdown renderer with styled components
                 </li>
               </ul>
             </div>
@@ -649,24 +659,27 @@ function AboutComponent() {
               <h3 className="text-lg font-semibold text-foreground mb-2">Route Pages</h3>
               <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
                 <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">index.tsx</code> - Home
-                  page with debate creation form using TanStack Form
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">index.tsx</code> -
+                  Home page with debate creation form using TanStack Form
                 </li>
                 <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">debate.$debateId.tsx</code> -
-                  Debate viewing page with SSE streaming, real-time updates, and debate persistence
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
+                    debate.$debateId.tsx
+                  </code>{" "}
+                  - Debate viewing page with SSE streaming, real-time updates, and debate
+                  persistence
                 </li>
                 <li>
                   <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">debates.tsx</code> -
                   Debates list page with color-coded cards and deletion functionality
                 </li>
                 <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">leaderboard.tsx</code> -
-                  Statistics page with model performance metrics and topic analytics
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">leaderboard.tsx</code>{" "}
+                  - Statistics page with model performance metrics and topic analytics
                 </li>
                 <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">about.tsx</code> - This
-                  page with comprehensive documentation
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">about.tsx</code> -
+                  This page with comprehensive documentation
                 </li>
               </ul>
             </div>

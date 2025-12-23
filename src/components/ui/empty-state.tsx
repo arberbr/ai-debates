@@ -23,18 +23,19 @@ export const EmptyState = ({
     if (onAction) {
       onAction();
     } else {
-      // biome-ignore lint/suspicious/noExplicitAny: Dynamic route navigation requires type assertion
-      navigate({ to: actionTo as any });
+      navigate({ to: actionTo as string });
     }
   };
 
   return (
-    <Card className="w-full">
+    <Card className="w-full" role="region" aria-labelledby="empty-state-title">
       <CardContent className="pt-6">
         <div className="text-center py-12">
-          <p className="text-lg text-muted-foreground mb-4">{title}</p>
+          <h2 id="empty-state-title" className="text-lg text-muted-foreground mb-4">
+            {title}
+          </h2>
           <p className="text-sm text-muted-foreground mb-6">{description}</p>
-          <Button onClick={handleAction} variant="primary">
+          <Button onClick={handleAction} variant="primary" aria-label={actionLabel}>
             {actionLabel}
           </Button>
         </div>

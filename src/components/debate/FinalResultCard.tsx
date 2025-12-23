@@ -13,8 +13,14 @@ export const FinalResultCard = ({ finalResult }: FinalResultCardProps) => {
   }[finalResult.winner || "tie"];
 
   return (
-    <Card className="p-6 bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 border-2 border-primary/30 mt-8">
-      <h3 className="text-2xl font-bold mb-5 text-foreground">Final Result</h3>
+    <Card
+      className="p-6 bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 border-2 border-primary/30 mt-8"
+      role="region"
+      aria-labelledby="final-result-heading"
+    >
+      <h3 id="final-result-heading" className="text-2xl font-bold mb-5 text-foreground">
+        Final Result
+      </h3>
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <span className="text-base font-semibold text-foreground/80">Winner:</span>

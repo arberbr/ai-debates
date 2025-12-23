@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useDebates } from "@/hooks/useDebates";
-import { MODEL_OPTIONS } from "@/lib/constants";
 import { cleanString } from "@/lib/debate-utils";
+import { getModelName } from "@/lib/utils";
 
 interface ModelStats {
   model: string;
@@ -26,37 +26,26 @@ interface TopicStats {
   count: number;
 }
 
-const getModelName = (slug: string) => {
-  const model = MODEL_OPTIONS.find((m) => m.slug === slug);
-  return model ? model.name : slug;
-};
-
 function LeaderboardComponent() {
   const navigate = useNavigate();
   const { debates: savedDebates } = useDebates();
-  const [modelStats, setModelStats] = useState<ModelStats[]>([]);
-  const [topicStats, setTopicStats] = useState<TopicStats[]>([]);
   const [sortBy, setSortBy] = useState<"winRate" | "wins" | "averageScore" | "totalDebates">(
     "winRate"
   );
-  const [totalStats, setTotalStats] = useState({
-    totalDebates: 0,
-    totalCost: 0,
-    totalTokens: 0,
-    averageRounds: 0,
-  });
 
-  const loadAndProcessDebates = useCallback(() => {
+  // Memoize processed statistics to avoid recalculating on every render
+  const { modelStats, topicStats, totalStats } = useMemo(() => {
     if (savedDebates.length === 0) {
-      setModelStats([]);
-      setTopicStats([]);
-      setTotalStats({
-        totalDebates: 0,
-        totalCost: 0,
-        totalTokens: 0,
-        averageRounds: 0,
-      });
-      return;
+      return {
+        modelStats: [] as ModelStats[],
+        topicStats: [] as TopicStats[],
+        totalStats: {
+          totalDebates: 0,
+          totalCost: 0,
+          totalTokens: 0,
+          averageRounds: 0,
+        },
+      };
     }
 
     try {
@@ -155,8 +144,8 @@ function LeaderboardComponent() {
         };
       });
 
-      // Sort by selected metric
-      statsArray.sort((a, b) => {
+      // Sort by selected metric (will be sorted separately in the render)
+      const sortedStats = [...statsArray].sort((a, b) => {
         switch (sortBy) {
           case "winRate":
             return b.winRate - a.winRate;
@@ -171,8 +160,6 @@ function LeaderboardComponent() {
         }
       });
 
-      setModelStats(statsArray);
-
       // Calculate topic statistics
       const topicMap = new Map<string, number>();
       debates.forEach((debate) => {
@@ -185,36 +172,36 @@ function LeaderboardComponent() {
         .sort((a, b) => b.count - a.count)
         .slice(0, 10); // Top 10 topics
 
-      setTopicStats(topics);
-
       // Calculate total statistics
       const totalCost = debates.reduce((sum, d) => sum + (d.usage?.cost || 0), 0);
       const totalTokens = debates.reduce((sum, d) => sum + (d.usage?.total_tokens || 0), 0);
       const totalRounds = debates.reduce((sum, d) => sum + (parseInt(d.rounds, 10) || 0), 0);
       const avgRounds = debates.length > 0 ? totalRounds / debates.length : 0;
 
-      setTotalStats({
-        totalDebates: debates.length,
-        totalCost: Math.round(totalCost * 10000) / 10000,
-        totalTokens,
-        averageRounds: Math.round(avgRounds * 100) / 100,
-      });
+      return {
+        modelStats: sortedStats,
+        topicStats: topics,
+        totalStats: {
+          totalDebates: debates.length,
+          totalCost: Math.round(totalCost * 10000) / 10000,
+          totalTokens,
+          averageRounds: Math.round(avgRounds * 100) / 100,
+        },
+      };
     } catch (e) {
       console.error("Error loading debates:", e);
-      setModelStats([]);
-      setTopicStats([]);
-      setTotalStats({
-        totalDebates: 0,
-        totalCost: 0,
-        totalTokens: 0,
-        averageRounds: 0,
-      });
+      return {
+        modelStats: [] as ModelStats[],
+        topicStats: [] as TopicStats[],
+        totalStats: {
+          totalDebates: 0,
+          totalCost: 0,
+          totalTokens: 0,
+          averageRounds: 0,
+        },
+      };
     }
   }, [savedDebates, sortBy]);
-
-  useEffect(() => {
-    loadAndProcessDebates();
-  }, [loadAndProcessDebates]);
 
   if (savedDebates.length === 0) {
     return (
@@ -315,17 +302,36 @@ function LeaderboardComponent() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
+                  <caption className="sr-only">Model Performance Leaderboard</caption>
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="text-left p-3 font-semibold">Rank</th>
-                      <th className="text-left p-3 font-semibold">Model</th>
-                      <th className="text-center p-3 font-semibold">Wins</th>
-                      <th className="text-center p-3 font-semibold">Losses</th>
-                      <th className="text-center p-3 font-semibold">Ties</th>
-                      <th className="text-center p-3 font-semibold">Win Rate</th>
-                      <th className="text-center p-3 font-semibold">Avg Score</th>
-                      <th className="text-center p-3 font-semibold">Debates</th>
-                      <th className="text-center p-3 font-semibold">Avg Cost</th>
+                      <th scope="col" className="text-left p-3 font-semibold">
+                        Rank
+                      </th>
+                      <th scope="col" className="text-left p-3 font-semibold">
+                        Model
+                      </th>
+                      <th scope="col" className="text-center p-3 font-semibold">
+                        Wins
+                      </th>
+                      <th scope="col" className="text-center p-3 font-semibold">
+                        Losses
+                      </th>
+                      <th scope="col" className="text-center p-3 font-semibold">
+                        Ties
+                      </th>
+                      <th scope="col" className="text-center p-3 font-semibold">
+                        Win Rate
+                      </th>
+                      <th scope="col" className="text-center p-3 font-semibold">
+                        Avg Score
+                      </th>
+                      <th scope="col" className="text-center p-3 font-semibold">
+                        Debates
+                      </th>
+                      <th scope="col" className="text-center p-3 font-semibold">
+                        Avg Cost
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -334,14 +340,26 @@ function LeaderboardComponent() {
                         key={stats.model}
                         className="border-b border-border/50 hover:bg-muted/30 transition-colors"
                       >
-                        <td className="p-3">
+                        <th scope="row" className="p-3">
                           <div className="flex items-center gap-2">
-                            {index === 0 && <span className="text-yellow-500">🥇</span>}
-                            {index === 1 && <span className="text-gray-400">🥈</span>}
-                            {index === 2 && <span className="text-amber-600">🥉</span>}
+                            {index === 0 && (
+                              <span className="text-yellow-500" role="img" aria-label="First place">
+                                🥇
+                              </span>
+                            )}
+                            {index === 1 && (
+                              <span className="text-gray-400" role="img" aria-label="Second place">
+                                🥈
+                              </span>
+                            )}
+                            {index === 2 && (
+                              <span className="text-amber-600" role="img" aria-label="Third place">
+                                🥉
+                              </span>
+                            )}
                             <span className="font-semibold">#{index + 1}</span>
                           </div>
-                        </td>
+                        </th>
                         <td className="p-3 font-medium">{stats.modelName}</td>
                         <td className="p-3 text-center text-green-600 dark:text-green-400 font-semibold">
                           {stats.wins}
