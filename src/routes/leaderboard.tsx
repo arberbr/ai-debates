@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { FeatureErrorBoundary } from "@/components/FeatureErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -220,212 +221,230 @@ function LeaderboardComponent() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
-      <div className="w-full space-y-6">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Leaderboards</h1>
-          <p className="text-muted-foreground">
-            Statistics from {totalStats.totalDebates} debate
-            {totalStats.totalDebates !== 1 ? "s" : ""}
-          </p>
-        </div>
+      <FeatureErrorBoundary featureName="Leaderboards">
+        <div className="w-full space-y-6">
+          {/* Header */}
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-foreground mb-2">Leaderboards</h1>
+            <p className="text-muted-foreground">
+              Statistics from {totalStats.totalDebates} debate
+              {totalStats.totalDebates !== 1 ? "s" : ""}
+            </p>
+          </div>
 
-        {/* Total Statistics */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Overall Statistics</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <div className="text-sm text-muted-foreground mb-1">Total Debates</div>
-                <div className="text-2xl font-bold">{totalStats.totalDebates}</div>
-              </div>
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <div className="text-sm text-muted-foreground mb-1">Total Cost</div>
-                <div className="text-2xl font-bold">${totalStats.totalCost.toFixed(4)}</div>
-              </div>
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <div className="text-sm text-muted-foreground mb-1">Total Tokens</div>
-                <div className="text-2xl font-bold">{totalStats.totalTokens.toLocaleString()}</div>
-              </div>
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <div className="text-sm text-muted-foreground mb-1">Avg Rounds</div>
-                <div className="text-2xl font-bold">{totalStats.averageRounds}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Model Performance Leaderboard */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <CardTitle>Model Performance</CardTitle>
-              <div className="flex gap-2">
-                <Button
-                  variant={sortBy === "winRate" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSortBy("winRate")}
-                >
-                  Win Rate
-                </Button>
-                <Button
-                  variant={sortBy === "wins" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSortBy("wins")}
-                >
-                  Wins
-                </Button>
-                <Button
-                  variant={sortBy === "averageScore" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSortBy("averageScore")}
-                >
-                  Avg Score
-                </Button>
-                <Button
-                  variant={sortBy === "totalDebates" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSortBy("totalDebates")}
-                >
-                  Debates
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {modelStats.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
-                No model statistics available
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <caption className="sr-only">Model Performance Leaderboard</caption>
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th scope="col" className="text-left p-3 font-semibold">
-                        Rank
-                      </th>
-                      <th scope="col" className="text-left p-3 font-semibold">
-                        Model
-                      </th>
-                      <th scope="col" className="text-center p-3 font-semibold">
-                        Wins
-                      </th>
-                      <th scope="col" className="text-center p-3 font-semibold">
-                        Losses
-                      </th>
-                      <th scope="col" className="text-center p-3 font-semibold">
-                        Ties
-                      </th>
-                      <th scope="col" className="text-center p-3 font-semibold">
-                        Win Rate
-                      </th>
-                      <th scope="col" className="text-center p-3 font-semibold">
-                        Avg Score
-                      </th>
-                      <th scope="col" className="text-center p-3 font-semibold">
-                        Debates
-                      </th>
-                      <th scope="col" className="text-center p-3 font-semibold">
-                        Avg Cost
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {modelStats.map((stats, index) => (
-                      <tr
-                        key={stats.model}
-                        className="border-b border-border/50 hover:bg-muted/30 transition-colors"
-                      >
-                        <th scope="row" className="p-3">
-                          <div className="flex items-center gap-2">
-                            {index === 0 && (
-                              <span className="text-yellow-500" role="img" aria-label="First place">
-                                🥇
-                              </span>
-                            )}
-                            {index === 1 && (
-                              <span className="text-gray-400" role="img" aria-label="Second place">
-                                🥈
-                              </span>
-                            )}
-                            {index === 2 && (
-                              <span className="text-amber-600" role="img" aria-label="Third place">
-                                🥉
-                              </span>
-                            )}
-                            <span className="font-semibold">#{index + 1}</span>
-                          </div>
-                        </th>
-                        <td className="p-3 font-medium">{stats.modelName}</td>
-                        <td className="p-3 text-center text-green-600 dark:text-green-400 font-semibold">
-                          {stats.wins}
-                        </td>
-                        <td className="p-3 text-center text-red-600 dark:text-red-400 font-semibold">
-                          {stats.losses}
-                        </td>
-                        <td className="p-3 text-center text-yellow-600 dark:text-yellow-400 font-semibold">
-                          {stats.ties}
-                        </td>
-                        <td className="p-3 text-center font-semibold">
-                          {stats.winRate.toFixed(1)}%
-                        </td>
-                        <td className="p-3 text-center">
-                          {stats.averageScore > 0 ? stats.averageScore.toFixed(1) : "N/A"}
-                        </td>
-                        <td className="p-3 text-center">{stats.totalDebates}</td>
-                        <td className="p-3 text-center text-sm">${stats.averageCost.toFixed(4)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Most Debated Topics */}
-        {topicStats.length > 0 && (
+          {/* Total Statistics */}
           <Card>
             <CardHeader>
-              <CardTitle>Most Debated Topics</CardTitle>
+              <CardTitle>Overall Statistics</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {topicStats.map((topicStat, index) => (
-                  <div
-                    key={`${topicStat.topic}-${index}`}
-                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg font-bold text-muted-foreground w-8">
-                        #{index + 1}
-                      </span>
-                      <span className="font-medium">{topicStat.topic}</span>
-                    </div>
-                    <span className="text-sm text-muted-foreground font-semibold">
-                      {topicStat.count} debate{topicStat.count !== 1 ? "s" : ""}
-                    </span>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 bg-muted/30 rounded-lg">
+                  <div className="text-sm text-muted-foreground mb-1">Total Debates</div>
+                  <div className="text-2xl font-bold">{totalStats.totalDebates}</div>
+                </div>
+                <div className="p-4 bg-muted/30 rounded-lg">
+                  <div className="text-sm text-muted-foreground mb-1">Total Cost</div>
+                  <div className="text-2xl font-bold">${totalStats.totalCost.toFixed(4)}</div>
+                </div>
+                <div className="p-4 bg-muted/30 rounded-lg">
+                  <div className="text-sm text-muted-foreground mb-1">Total Tokens</div>
+                  <div className="text-2xl font-bold">
+                    {totalStats.totalTokens.toLocaleString()}
                   </div>
-                ))}
+                </div>
+                <div className="p-4 bg-muted/30 rounded-lg">
+                  <div className="text-sm text-muted-foreground mb-1">Avg Rounds</div>
+                  <div className="text-2xl font-bold">{totalStats.averageRounds}</div>
+                </div>
               </div>
             </CardContent>
           </Card>
-        )}
 
-        {/* Actions */}
-        <div className="flex gap-4 justify-center">
-          <Button onClick={() => navigate({ to: "/" })} variant="primary">
-            Start New Debate
-          </Button>
-          <Button onClick={() => navigate({ to: "/debates" })} variant="outline">
-            View All Debates
-          </Button>
+          {/* Model Performance Leaderboard */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <CardTitle>Model Performance</CardTitle>
+                <div className="flex gap-2">
+                  <Button
+                    variant={sortBy === "winRate" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSortBy("winRate")}
+                  >
+                    Win Rate
+                  </Button>
+                  <Button
+                    variant={sortBy === "wins" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSortBy("wins")}
+                  >
+                    Wins
+                  </Button>
+                  <Button
+                    variant={sortBy === "averageScore" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSortBy("averageScore")}
+                  >
+                    Avg Score
+                  </Button>
+                  <Button
+                    variant={sortBy === "totalDebates" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSortBy("totalDebates")}
+                  >
+                    Debates
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {modelStats.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  No model statistics available
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <caption className="sr-only">Model Performance Leaderboard</caption>
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th scope="col" className="text-left p-3 font-semibold">
+                          Rank
+                        </th>
+                        <th scope="col" className="text-left p-3 font-semibold">
+                          Model
+                        </th>
+                        <th scope="col" className="text-center p-3 font-semibold">
+                          Wins
+                        </th>
+                        <th scope="col" className="text-center p-3 font-semibold">
+                          Losses
+                        </th>
+                        <th scope="col" className="text-center p-3 font-semibold">
+                          Ties
+                        </th>
+                        <th scope="col" className="text-center p-3 font-semibold">
+                          Win Rate
+                        </th>
+                        <th scope="col" className="text-center p-3 font-semibold">
+                          Avg Score
+                        </th>
+                        <th scope="col" className="text-center p-3 font-semibold">
+                          Debates
+                        </th>
+                        <th scope="col" className="text-center p-3 font-semibold">
+                          Avg Cost
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {modelStats.map((stats, index) => (
+                        <tr
+                          key={stats.model}
+                          className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                        >
+                          <th scope="row" className="p-3">
+                            <div className="flex items-center gap-2">
+                              {index === 0 && (
+                                <span
+                                  className="text-yellow-500"
+                                  role="img"
+                                  aria-label="First place"
+                                >
+                                  🥇
+                                </span>
+                              )}
+                              {index === 1 && (
+                                <span
+                                  className="text-gray-400"
+                                  role="img"
+                                  aria-label="Second place"
+                                >
+                                  🥈
+                                </span>
+                              )}
+                              {index === 2 && (
+                                <span
+                                  className="text-amber-600"
+                                  role="img"
+                                  aria-label="Third place"
+                                >
+                                  🥉
+                                </span>
+                              )}
+                              <span className="font-semibold">#{index + 1}</span>
+                            </div>
+                          </th>
+                          <td className="p-3 font-medium">{stats.modelName}</td>
+                          <td className="p-3 text-center text-green-600 dark:text-green-400 font-semibold">
+                            {stats.wins}
+                          </td>
+                          <td className="p-3 text-center text-red-600 dark:text-red-400 font-semibold">
+                            {stats.losses}
+                          </td>
+                          <td className="p-3 text-center text-yellow-600 dark:text-yellow-400 font-semibold">
+                            {stats.ties}
+                          </td>
+                          <td className="p-3 text-center font-semibold">
+                            {stats.winRate.toFixed(1)}%
+                          </td>
+                          <td className="p-3 text-center">
+                            {stats.averageScore > 0 ? stats.averageScore.toFixed(1) : "N/A"}
+                          </td>
+                          <td className="p-3 text-center">{stats.totalDebates}</td>
+                          <td className="p-3 text-center text-sm">
+                            ${stats.averageCost.toFixed(4)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Most Debated Topics */}
+          {topicStats.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Most Debated Topics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {topicStats.map((topicStat, index) => (
+                    <div
+                      key={`${topicStat.topic}-${index}`}
+                      className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg font-bold text-muted-foreground w-8">
+                          #{index + 1}
+                        </span>
+                        <span className="font-medium">{topicStat.topic}</span>
+                      </div>
+                      <span className="text-sm text-muted-foreground font-semibold">
+                        {topicStat.count} debate{topicStat.count !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-4 justify-center">
+            <Button onClick={() => navigate({ to: "/" })} variant="primary">
+              Start New Debate
+            </Button>
+            <Button onClick={() => navigate({ to: "/debates" })} variant="outline">
+              View All Debates
+            </Button>
+          </div>
         </div>
-      </div>
+      </FeatureErrorBoundary>
     </div>
   );
 }

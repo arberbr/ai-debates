@@ -7,6 +7,8 @@
     <meta name="description" content="AI-powered debate platform where AI models engage in structured debates on various topics" />
     <meta name="theme-color" content="#000000" />
     <meta name="color-scheme" content="dark" />
+    <!-- Content Security Policy for XSS protection -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://openrouter.ai https://*.openrouter.ai http://localhost:*; img-src 'self' data: https:; font-src 'self' data:;" />
     <title>AI Debates</title>
   </head>
   <body>

@@ -55,18 +55,21 @@ export function useDebates() {
     (debateId: string) => {
       try {
         const updated = debates.filter((d) => d.debateId !== debateId);
-        setDebates(updated);
+        // Update storage first, then state to prevent inconsistency
         setItem(STORAGE_KEYS.SAVED_DEBATES, updated);
+        setDebates(updated);
 
         // Dispatch custom event for same-tab listeners
         window.dispatchEvent(new Event("customStorageChange"));
       } catch (e) {
         console.error("Error deleting debate:", e);
+        // Reload from storage on error to restore consistency
+        loadDebates();
         // Re-throw so caller can handle UI feedback
         throw e;
       }
     },
-    [debates, setItem]
+    [debates, setItem, loadDebates]
   );
 
   useEffect(() => {

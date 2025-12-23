@@ -1,6 +1,6 @@
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,6 +51,10 @@ function IndexComponent() {
     noModel?: string;
   }>({});
 
+  // Rate limiting: track last submission time to prevent spamming
+  const RATE_LIMIT_MS = 5000; // 5 seconds between submissions
+  const lastSubmissionRef = useRef<number>(0);
+
   const form = useForm({
     defaultValues: {
       topic: "",
@@ -60,6 +64,17 @@ function IndexComponent() {
       judgePrompt: "",
     },
     onSubmit: async ({ value }) => {
+      // Rate limit check to prevent API quota exhaustion
+      const now = Date.now();
+      const timeSinceLastSubmission = now - lastSubmissionRef.current;
+      if (timeSinceLastSubmission < RATE_LIMIT_MS) {
+        const waitTime = Math.ceil((RATE_LIMIT_MS - timeSinceLastSubmission) / 1000);
+        toast.error(
+          `Please wait ${waitTime} second${waitTime !== 1 ? "s" : ""} before starting another debate`
+        );
+        return;
+      }
+
       setIsSubmitting(true);
       setFieldErrors({});
 
@@ -145,6 +160,9 @@ function IndexComponent() {
           return;
         }
 
+        // Update last submission time on successful submission
+        lastSubmissionRef.current = Date.now();
+
         // Navigate to the debate page with just the debateId
         navigate({
           to: "/debate/$debateId",
@@ -190,6 +208,10 @@ function IndexComponent() {
                   />
                   <p className="text-sm text-muted-foreground">
                     Your API key is stored locally and will be used for all debate requests.
+                  </p>
+                  <p className="text-sm text-amber-600 dark:text-amber-400">
+                    ⚠️ Your API key is stored in your browser's local storage. Only use this on
+                    trusted devices.
                   </p>
                 </div>
               </CardContent>
