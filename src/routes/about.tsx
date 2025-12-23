@@ -653,6 +653,15 @@ function AboutComponent() {
                   Manages saved debates with CRUD operations, cross-tab sync, and localStorage
                   persistence
                 </li>
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebateStream</code>{" "}
+                  - Handles SSE streaming for real-time debate progress with state management and
+                  error handling
+                </li>
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useLocalStorage</code>{" "}
+                  - Generic localStorage utility hook with JSON serialization and cross-tab sync
+                </li>
               </ul>
             </div>
             <div>
@@ -683,6 +692,22 @@ function AboutComponent() {
                 </li>
               </ul>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Author & Credits */}
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-foreground">Credits</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-base text-muted-foreground leading-relaxed">
+              Developed by <strong className="text-foreground">Arber Braja</strong>.
+            </p>
+            <p className="text-base text-muted-foreground leading-relaxed">
+              Built with React 19, Vite 7, TanStack Router, Tailwind CSS, and shadcn/ui.
+            </p>
+            <p className="text-sm text-muted-foreground">Licensed under the MIT License.</p>
           </CardContent>
         </Card>
       </div>

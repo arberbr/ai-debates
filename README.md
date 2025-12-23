@@ -118,7 +118,9 @@ ai-debates/
 │   │   └── ErrorBoundary.tsx    # Error boundary for error handling
 │   ├── hooks/                   # Custom React hooks
 │   │   ├── useApiKey.ts         # API key management hook
-│   │   └── useDebates.ts        # Debates CRUD operations hook
+│   │   ├── useDebates.ts        # Debates CRUD operations hook
+│   │   ├── useDebateStream.ts   # SSE streaming hook for real-time debate progress
+│   │   └── useLocalStorage.ts   # Generic localStorage utility hook
 │   ├── routes/                  # TanStack Router file-based routes
 │   │   ├── __root.tsx           # Root layout with navigation and error boundary
 │   │   ├── index.tsx            # Home page with debate creation form
