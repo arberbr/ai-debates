@@ -21,8 +21,6 @@ A modern web application that facilitates structured debates between AI models o
 
 ## Tech Stack
 
-### Frontend
-
 - **Framework**: React 19 with TypeScript
 - **Build Tool**: Vite 7
 - **Routing**: TanStack Router (file-based routing with type safety)
@@ -32,12 +30,6 @@ A modern web application that facilitates structured debates between AI models o
 - **Markdown**: react-markdown
 - **Notifications**: Sonner (toast notifications)
 - **Code Quality**: Biome (linting and formatting)
-
-### Backend
-
-- **Framework**: NestJS (Node.js)
-- **API Gateway**: OpenRouter for unified LLM access
-- **Streaming**: Server-Sent Events (SSE) for real-time updates
 
 ## Prerequisites
 
@@ -55,19 +47,7 @@ From the project root:
 pnpm install
 ```
 
-### 2. Start the Backend
-
-The backend must be running for the frontend to work. See the [backend README](./backend/README.md) for setup instructions.
-
-```bash
-cd backend
-npm install
-npm run start:dev
-```
-
-The backend will run on `http://localhost:3001` by default.
-
-### 3. Start the Frontend
+### 2. Start the Frontend
 
 In a new terminal, from the project root:
 
@@ -77,7 +57,9 @@ pnpm dev
 
 The frontend will be available at `http://localhost:5173` (or the next available port).
 
-### 4. Configure API Key
+**Note:** The backend must be running for the frontend to work. The frontend connects to `http://localhost:3001` by default (configurable via `VITE_API_BASE_URL` environment variable).
+
+### 3. Configure API Key
 
 1. Open the application in your browser
 2. Enter your OpenRouter API key when prompted
@@ -313,20 +295,13 @@ Reading times are calculated using:
 - Ensure you have sufficient credits in your OpenRouter account
 - The API key is cleared automatically on authentication errors
 
-### Backend Connection Issues
-
-- Ensure the backend is running on `http://localhost:3001` (or your configured port)
-- Check browser console for CORS or connection errors
-- If using a custom backend URL, set the `VITE_API_BASE_URL` environment variable (see Environment Variables section)
-- Verify the backend is accessible by checking the API endpoints directly
-
 ### Debate Not Starting
 
 - Check that all required fields are filled (topic, both models)
 - Verify your API key is saved in localStorage (check browser DevTools → Application → Local Storage)
 - Check browser console for error messages
 - Ensure topic is not longer than 300 characters
-- Verify backend is running and accessible
+- If you see connection errors, verify the API server is accessible
 
 ### Storage Issues
 
