@@ -43,6 +43,7 @@ export function useDebateStream({
 
   const hasStartedRef = useRef(false);
   const startedDebateIdRef = useRef<string | null>(null);
+  const isInitializingRef = useRef(false);
 
   // 3. Title Generation
   const { generateTitle, generateFallbackTitle } = useTitleGeneration();
@@ -152,23 +153,32 @@ export function useDebateStream({
     // Basic guards
     if (!debateConfig || state.isComplete) return;
     if (debateConfig.debateId !== debateId) return;
+
+    // Atomic check-and-set to prevent race conditions
+    // If already started for this debate, skip
     if (hasStartedRef.current && startedDebateIdRef.current === debateId) return;
+    // If currently initializing, skip
+    if (isInitializingRef.current) return;
+
+    // Atomically claim initialization
+    isInitializingRef.current = true;
+    hasStartedRef.current = true;
+    startedDebateIdRef.current = debateId;
 
     // Validate config
     if (!debateConfig.topic || !debateConfig.yesModel || !debateConfig.noModel) {
       const errorMsg = "Missing required debate parameters.";
+      isInitializingRef.current = false;
       handleError(errorMsg);
       return;
     }
 
-    // Initialize
-    hasStartedRef.current = true;
-    startedDebateIdRef.current = debateId;
     actions.setModels(debateConfig.yesModel, debateConfig.noModel);
 
     // Get API Key
     const storedApiKey = getItemRawRef.current(STORAGE_KEYS.API_KEY);
     if (!storedApiKey || !storedApiKey.trim()) {
+      isInitializingRef.current = false;
       handleError("OpenRouter API key is required. Please go back and enter your API key.");
       return;
     }
@@ -176,17 +186,22 @@ export function useDebateStream({
 
     // Async Start
     const init = async () => {
-      // 1. Generate Title
-      actions.setStatus("Generating title...");
-      let title = await generateTitle(debateConfig.topic, apiKey);
-      if (!title) {
-        title = generateFallbackTitle(debateConfig.topic);
-      }
-      actions.setDisplayTopic(title);
+      try {
+        // 1. Generate Title
+        actions.setStatus("Generating title...");
+        let title = await generateTitle(debateConfig.topic, apiKey);
+        if (!title) {
+          title = generateFallbackTitle(debateConfig.topic);
+        }
+        actions.setDisplayTopic(title);
 
-      // 2. Start Stream
-      actions.setStatus("Starting debate...");
-      await startConnection(debateConfig, title, apiKey);
+        // 2. Start Stream
+        actions.setStatus("Starting debate...");
+        await startConnection(debateConfig, title, apiKey);
+      } finally {
+        // Mark initialization as complete only after async operations complete
+        isInitializingRef.current = false;
+      }
     };
 
     init();
@@ -194,7 +209,12 @@ export function useDebateStream({
     // Cleanup
     return () => {
       cancelConnection();
-      hasStartedRef.current = false;
+      // Only reset if this is the debate we started
+      if (startedDebateIdRef.current === debateId) {
+        hasStartedRef.current = false;
+        startedDebateIdRef.current = null;
+      }
+      isInitializingRef.current = false;
     };
   }, [
     debateConfig,

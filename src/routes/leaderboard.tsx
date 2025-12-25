@@ -35,12 +35,12 @@ function LeaderboardComponent() {
     "winRate"
   );
 
-  // Memoize processed statistics to avoid recalculating on every render
-  const { modelStats, topicStats, totalStats } = useMemo(() => {
+  // Calculate statistics (separate from sorting for better performance)
+  const { modelStatsArray, topicStats, totalStats } = useMemo(() => {
     // Return empty stats if loading or no debates
     if (isLoading || savedDebates.length === 0) {
       return {
-        modelStats: [] as ModelStats[],
+        modelStatsArray: [] as ModelStats[],
         topicStats: [] as TopicStats[],
         totalStats: {
           totalDebates: 0,
@@ -50,14 +50,12 @@ function LeaderboardComponent() {
         },
       };
     }
-    // ... rest of useMemo logic ...
+
     try {
       const debates = savedDebates;
 
       // Calculate model statistics
       const modelMap = new Map<string, ModelStats>();
-
-      // ...
 
       debates.forEach((debate) => {
         if (!debate.finalResult || !debate.yesModel || !debate.noModel) return;
@@ -149,22 +147,6 @@ function LeaderboardComponent() {
         };
       });
 
-      // Sort by selected metric (will be sorted separately in the render)
-      const sortedStats = [...statsArray].sort((a, b) => {
-        switch (sortBy) {
-          case "winRate":
-            return b.winRate - a.winRate;
-          case "wins":
-            return b.wins - a.wins;
-          case "averageScore":
-            return b.averageScore - a.averageScore;
-          case "totalDebates":
-            return b.totalDebates - a.totalDebates;
-          default:
-            return 0;
-        }
-      });
-
       // Calculate topic statistics
       const topicMap = new Map<string, number>();
       debates.forEach((debate) => {
@@ -184,7 +166,7 @@ function LeaderboardComponent() {
       const avgRounds = debates.length > 0 ? totalRounds / debates.length : 0;
 
       return {
-        modelStats: sortedStats,
+        modelStatsArray: statsArray,
         topicStats: topics,
         totalStats: {
           totalDebates: debates.length,
@@ -196,7 +178,7 @@ function LeaderboardComponent() {
     } catch (e) {
       console.error("Error loading debates:", e);
       return {
-        modelStats: [] as ModelStats[],
+        modelStatsArray: [] as ModelStats[],
         topicStats: [] as TopicStats[],
         totalStats: {
           totalDebates: 0,
@@ -206,7 +188,25 @@ function LeaderboardComponent() {
         },
       };
     }
-  }, [savedDebates, sortBy, isLoading]);
+  }, [savedDebates, isLoading]);
+
+  // Sort model stats separately (only recalculates when sortBy changes)
+  const modelStats = useMemo(() => {
+    return [...modelStatsArray].sort((a, b) => {
+      switch (sortBy) {
+        case "winRate":
+          return b.winRate - a.winRate;
+        case "wins":
+          return b.wins - a.wins;
+        case "averageScore":
+          return b.averageScore - a.averageScore;
+        case "totalDebates":
+          return b.totalDebates - a.totalDebates;
+        default:
+          return 0;
+      }
+    });
+  }, [modelStatsArray, sortBy]);
 
   if (isLoading) {
     return (

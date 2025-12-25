@@ -27,7 +27,8 @@ A modern web application that facilitates structured debates between AI models o
 - **Forms**: TanStack Form
 - **Styling**: Tailwind CSS with dark mode
 - **UI Components**: shadcn/ui (built on Radix UI primitives)
-- **Markdown**: react-markdown
+- **Markdown**: react-markdown with rehype-sanitize
+- **Validation**: Zod
 - **Notifications**: Sonner (toast notifications)
 - **Code Quality**: Biome (linting and formatting)
 
@@ -113,26 +114,35 @@ ai-debates/
 │   │   │   ├── input.tsx
 │   │   │   ├── label.tsx
 │   │   │   ├── select.tsx
+│   │   │   ├── skeleton.tsx
 │   │   │   ├── textarea.tsx
 │   │   │   └── toast.tsx
-│   │   └── ErrorBoundary.tsx    # Error boundary for error handling
+│   │   ├── ErrorBoundary.tsx    # Global error boundary for error handling
+│   │   └── FeatureErrorBoundary.tsx  # Feature-specific error boundary
 │   ├── hooks/                   # Custom React hooks
 │   │   ├── useApiKey.ts         # API key management hook
+│   │   ├── useDebateConnection.ts  # SSE connection management hook
+│   │   ├── useDebateState.ts    # Debate state management with reducer
+│   │   ├── useDebateStream.ts   # Main SSE streaming hook (composes other hooks)
 │   │   ├── useDebates.ts        # Debates CRUD operations hook
-│   │   ├── useDebateStream.ts   # SSE streaming hook for real-time debate progress
-│   │   └── useLocalStorage.ts   # Generic localStorage utility hook
+│   │   ├── useLocalStorage.ts   # Generic localStorage utility hook
+│   │   └── useTitleGeneration.ts  # Debate title generation hook
 │   ├── routes/                  # TanStack Router file-based routes
 │   │   ├── __root.tsx           # Root layout with navigation and error boundary
 │   │   ├── index.tsx            # Home page with debate creation form
 │   │   ├── about.tsx            # About page with detailed documentation
 │   │   ├── debates.tsx          # Debates list page
 │   │   ├── leaderboard.tsx      # Leaderboard and statistics page
-│   │   └── debate.$debateId.tsx # Individual debate viewing page with SSE streaming
+│   │   ├── debate.$debateId.tsx # Individual debate viewing page with SSE streaming
+│   │   └── routeTree.gen.ts     # Auto-generated route tree (TanStack Router)
 │   ├── lib/
+│   │   ├── api-client.ts        # Centralized API client with retry logic
 │   │   ├── constants.ts         # App constants (models, storage keys, config)
+│   │   ├── debate-utils.ts      # Debate-specific utilities (string cleaning)
+│   │   ├── error-handler.ts     # Error handling utilities
+│   │   ├── schemas.ts           # Zod validation schemas
 │   │   ├── types.ts             # TypeScript type definitions
-│   │   ├── utils.ts             # Utility functions (reading time, date formatting, markdown stripping)
-│   │   └── debate-utils.ts      # Debate-specific utilities (string cleaning)
+│   │   └── utils.ts             # Utility functions (reading time, date formatting, markdown stripping)
 │   ├── main.tsx                 # Application entry point
 │   └── index.css                # Global styles and CSS variables
 ├── backend/                     # NestJS backend (see backend/README.md)
@@ -262,7 +272,7 @@ The application uses Server-Sent Events (SSE) to stream debate progress in real-
 The application uses a hybrid approach:
 
 1. **Component State**: React hooks for UI state (loading, errors, form values)
-2. **Custom Hooks**: Encapsulate business logic (`useApiKey`, `useDebates`)
+2. **Custom Hooks**: Encapsulate business logic (`useApiKey`, `useDebates`, `useDebateStream`, `useDebateState`, `useTitleGeneration`)
 3. **localStorage**: Persistent storage with automatic synchronization
 4. **Event System**: Custom events for same-tab updates, Storage API for cross-tab sync
 

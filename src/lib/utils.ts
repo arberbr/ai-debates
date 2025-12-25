@@ -150,3 +150,14 @@ export function calculateTotalReadingTimeForSide(
   const minutes = Math.max(1, Math.ceil(totalWords / wordsPerMinute));
   return `${minutes} min read`;
 }
+
+/**
+ * Formats a number of bytes into a human-readable string
+ * @param bytes - Number of bytes
+ * @returns Formatted string (e.g., "1024 B", "1 KB", "1 MB")
+ */
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}

@@ -48,6 +48,14 @@ export const TIMING = {
 } as const;
 
 /**
+ * SSE buffer configuration
+ */
+export const SSE_BUFFER = {
+  /** Maximum buffer size in bytes (1MB) */
+  MAX_SIZE: 1024 * 1024,
+} as const;
+
+/**
  * Gets the API base URL from environment variable or defaults to localhost:3001
  * In Vite, environment variables must be prefixed with VITE_ to be exposed to client-side code
  * Validates URL format at runtime

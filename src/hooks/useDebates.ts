@@ -35,14 +35,58 @@ export function useDebates() {
         setDebates(validatedDebates);
       } else {
         console.error("Failed to validate saved debates:", result.error);
-        // Fallback to empty array if validation fails completely
-        // Alternatively, could try to filter out only invalid ones
-        setDebates([]);
+
+        // Attempt partial recovery: filter out invalid entries and keep valid ones
+        if (Array.isArray(saved) && saved.length > 0) {
+          const validDebates: SavedDebate[] = [];
+          const invalidCount = { count: 0 };
+
+          for (const item of saved) {
+            const itemResult = savedDebateSchema.safeParse(item);
+            if (itemResult.success) {
+              validDebates.push(itemResult.data);
+            } else {
+              invalidCount.count++;
+              console.warn("Skipping invalid debate entry:", item, itemResult.error);
+            }
+          }
+
+          if (validDebates.length > 0) {
+            // Sort by timestamp, most recent first
+            validDebates.sort(
+              (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            );
+            setDebates(validDebates);
+
+            // Save the cleaned data back to storage
+            try {
+              setItem(STORAGE_KEYS.SAVED_DEBATES, validDebates);
+            } catch (e) {
+              console.error("Failed to save cleaned debates:", e);
+            }
+
+            console.warn(
+              `Recovered ${validDebates.length} valid debate(s), removed ${invalidCount.count} invalid entry/entries`
+            );
+          } else {
+            // No valid debates found, clear storage and set empty array
+            console.error("No valid debates found in storage");
+            setDebates([]);
+            try {
+              setItem(STORAGE_KEYS.SAVED_DEBATES, []);
+            } catch (e) {
+              console.error("Failed to clear invalid debates:", e);
+            }
+          }
+        } else {
+          // Not an array or empty, set to empty array
+          setDebates([]);
+        }
       }
     } finally {
       setIsLoading(false);
     }
-  }, [getItem]);
+  }, [getItem, setItem]);
 
   /**
    * Save a debate to localStorage.

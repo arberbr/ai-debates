@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { ApiError, apiClient, createDebateStartConfig } from "@/lib/api-client";
-import { STORAGE_KEYS } from "@/lib/constants";
+import { SSE_BUFFER, STORAGE_KEYS } from "@/lib/constants";
 import type {
   Conclusions,
   DebateConfig,
@@ -137,6 +137,16 @@ export function useDebateConnection({
           if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
+
+          // Prevent buffer from growing unbounded (memory leak prevention)
+          if (buffer.length > SSE_BUFFER.MAX_SIZE) {
+            const errorMessage = `SSE buffer exceeded maximum size of ${SSE_BUFFER.MAX_SIZE} bytes. The stream may be malformed.`;
+            console.error(errorMessage);
+            onErrorRef.current(errorMessage);
+            onEventRef.current({ stage: "error", message: errorMessage });
+            break;
+          }
+
           const lines = buffer.split("\n");
           buffer = lines.pop() || "";
 

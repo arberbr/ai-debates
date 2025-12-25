@@ -1,10 +1,31 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { formatBytes } from "@/lib/utils";
 
 /**
  * Custom hook for localStorage operations with error handling and type safety
  * Provides a consistent API for getting, setting, and removing items from localStorage
  */
 export function useLocalStorage() {
+  // Cache the quota estimate to avoid async calls in synchronous code paths
+  const quotaCacheRef = useRef<number | null>(null);
+
+  // Initialize quota cache asynchronously on mount
+  useEffect(() => {
+    const initQuota = async () => {
+      try {
+        if ("storage" in navigator && "estimate" in navigator.storage) {
+          const estimate = await navigator.storage.estimate();
+          if (estimate.quota && typeof estimate.quota === "number" && estimate.quota > 0) {
+            quotaCacheRef.current = Math.min(estimate.quota, 50 * 1024 * 1024);
+          }
+        }
+      } catch (e) {
+        // Storage API not available, will use default
+        console.debug("Failed to initialize quota cache:", e);
+      }
+    };
+    initQuota();
+  }, []);
   /**
    * Get an item from localStorage
    * @param key - The storage key
@@ -95,7 +116,7 @@ export function useLocalStorage() {
   }, []);
 
   /**
-   * Get storage usage statistics
+   * Get storage usage statistics (synchronous version using cached quota)
    * @returns Object with current usage in bytes, estimated quota, and usage percentage
    */
   const getStorageStats = useCallback((): {
@@ -116,16 +137,9 @@ export function useLocalStorage() {
         }
       }
 
-      // Most browsers allow ~5-10 MB for localStorage
-      // We use 5MB as a conservative estimate
-      const estimatedQuotaBytes = 5 * 1024 * 1024;
+      // Use cached quota estimate, or fallback to conservative default
+      const estimatedQuotaBytes = quotaCacheRef.current ?? 5 * 1024 * 1024;
       const usagePercent = Math.round((usedBytes / estimatedQuotaBytes) * 100);
-
-      const formatBytes = (bytes: number): string => {
-        if (bytes < 1024) return `${bytes} B`;
-        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-        return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-      };
 
       return {
         usedBytes,
@@ -136,9 +150,10 @@ export function useLocalStorage() {
       };
     } catch (e) {
       console.error("Error calculating storage stats:", e);
+      const defaultQuota = 5 * 1024 * 1024;
       return {
         usedBytes: 0,
-        estimatedQuotaBytes: 5 * 1024 * 1024,
+        estimatedQuotaBytes: defaultQuota,
         usagePercent: 0,
         formattedUsed: "0 B",
         formattedQuota: "5 MB",

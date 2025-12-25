@@ -506,8 +506,11 @@ function AboutComponent() {
                   customizable UI elements
                 </li>
                 <li>
-                  <strong>react-markdown</strong> for rendering debate content with full markdown
-                  support
+                  <strong>react-markdown</strong> with <strong>rehype-sanitize</strong> for rendering
+                  debate content with full markdown support and security
+                </li>
+                <li>
+                  <strong>Zod</strong> for runtime validation and type-safe schemas
                 </li>
                 <li>
                   <strong>Sonner</strong> for toast notifications
@@ -523,19 +526,24 @@ function AboutComponent() {
                 <li>
                   React hooks (
                   <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useState</code>,{" "}
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useEffect</code>) for
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useEffect</code>,{" "}
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useReducer</code>) for
                   local component state
                 </li>
                 <li>
                   Custom hooks (
                   <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useApiKey</code>,{" "}
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebates</code>) for
-                  shared state logic
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebates</code>,{" "}
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebateStream</code>,{" "}
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebateState</code>,{" "}
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useTitleGeneration</code>) for
+                  shared state logic and business operations
                 </li>
                 <li>
-                  <strong>localStorage</strong> for persistent data storage (API keys, debates)
+                  <strong>localStorage</strong> for persistent data storage (API keys, debates) with
+                  quota management
                 </li>
-                <li>Cross-tab synchronization via Storage API events</li>
+                <li>Cross-tab synchronization via Storage API events and custom events</li>
               </ul>
             </div>
             <div>
@@ -604,7 +612,11 @@ function AboutComponent() {
                 </li>
                 <li>
                   <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">ErrorBoundary</code> -
-                  React error boundary for graceful error handling and recovery
+                  Global React error boundary for graceful error handling and recovery
+                </li>
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">FeatureErrorBoundary</code> -
+                  Feature-specific error boundary that provides recovery options without crashing the entire application
                 </li>
               </ul>
             </div>
@@ -649,18 +661,29 @@ function AboutComponent() {
                   Manages OpenRouter API key storage and retrieval from localStorage
                 </li>
                 <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebateConnection</code>{" "}
+                  - Handles SSE connection management, event parsing, and connection lifecycle
+                </li>
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebateState</code>{" "}
+                  - Manages debate state with useReducer for complex state transitions
+                </li>
+                <li>
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebateStream</code>{" "}
+                  - Main hook that orchestrates SSE streaming, title generation, and state management
+                </li>
+                <li>
                   <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebates</code> -
                   Manages saved debates with CRUD operations, cross-tab sync, and localStorage
                   persistence
                 </li>
                 <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebateStream</code>{" "}
-                  - Handles SSE streaming for real-time debate progress with state management and
-                  error handling
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useLocalStorage</code>{" "}
+                  - Generic localStorage utility hook with JSON serialization, quota checking, and cross-tab sync
                 </li>
                 <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useLocalStorage</code>{" "}
-                  - Generic localStorage utility hook with JSON serialization and cross-tab sync
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useTitleGeneration</code>{" "}
+                  - Handles debate title generation with API calls and fallback logic
                 </li>
               </ul>
             </div>
