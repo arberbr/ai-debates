@@ -506,8 +506,8 @@ function AboutComponent() {
                   customizable UI elements
                 </li>
                 <li>
-                  <strong>react-markdown</strong> with <strong>rehype-sanitize</strong> for rendering
-                  debate content with full markdown support and security
+                  <strong>react-markdown</strong> with <strong>rehype-sanitize</strong> for
+                  rendering debate content with full markdown support and security
                 </li>
                 <li>
                   <strong>Zod</strong> for runtime validation and type-safe schemas
@@ -534,10 +534,13 @@ function AboutComponent() {
                   Custom hooks (
                   <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useApiKey</code>,{" "}
                   <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebates</code>,{" "}
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebateStream</code>,{" "}
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebateStream</code>
+                  ,{" "}
                   <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebateState</code>,{" "}
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useTitleGeneration</code>) for
-                  shared state logic and business operations
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
+                    useTitleGeneration
+                  </code>
+                  ) for shared state logic and business operations
                 </li>
                 <li>
                   <strong>localStorage</strong> for persistent data storage (API keys, debates) with
@@ -615,8 +618,11 @@ function AboutComponent() {
                   Global React error boundary for graceful error handling and recovery
                 </li>
                 <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">FeatureErrorBoundary</code> -
-                  Feature-specific error boundary that provides recovery options without crashing the entire application
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
+                    FeatureErrorBoundary
+                  </code>{" "}
+                  - Feature-specific error boundary that provides recovery options without crashing
+                  the entire application
                 </li>
               </ul>
             </div>
@@ -661,7 +667,9 @@ function AboutComponent() {
                   Manages OpenRouter API key storage and retrieval from localStorage
                 </li>
                 <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebateConnection</code>{" "}
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
+                    useDebateConnection
+                  </code>{" "}
                   - Handles SSE connection management, event parsing, and connection lifecycle
                 </li>
                 <li>
@@ -670,7 +678,8 @@ function AboutComponent() {
                 </li>
                 <li>
                   <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebateStream</code>{" "}
-                  - Main hook that orchestrates SSE streaming, title generation, and state management
+                  - Main hook that orchestrates SSE streaming, title generation, and state
+                  management
                 </li>
                 <li>
                   <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebates</code> -
@@ -679,10 +688,13 @@ function AboutComponent() {
                 </li>
                 <li>
                   <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useLocalStorage</code>{" "}
-                  - Generic localStorage utility hook with JSON serialization, quota checking, and cross-tab sync
+                  - Generic localStorage utility hook with JSON serialization, quota checking, and
+                  cross-tab sync
                 </li>
                 <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useTitleGeneration</code>{" "}
+                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
+                    useTitleGeneration
+                  </code>{" "}
                   - Handles debate title generation with API calls and fallback logic
                 </li>
               </ul>

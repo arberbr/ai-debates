@@ -2,6 +2,14 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { DEBATE_CONFIG, MODEL_OPTIONS } from "./constants";
 
+/**
+ * Utility function to merge class names using clsx and tailwind-merge.
+ * Combines conditional classes and resolves Tailwind CSS class conflicts.
+ * @param inputs - Variable number of class name arguments (strings, objects, arrays)
+ * @returns Merged class name string optimized for Tailwind CSS
+ * @example
+ * cn("px-2", { "text-red": isRed }, ["py-1", "bg-blue"])
+ */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -160,4 +168,205 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+/**
+ * Generates a UUID v4 with fallback for non-HTTPS environments
+ * Uses crypto.randomUUID() when available (requires HTTPS in production),
+ * otherwise falls back to a random UUID generation
+ * @returns A UUID v4 string
+ */
+export function generateUUID(): string {
+  // Try to use crypto.randomUUID() if available (requires HTTPS in production)
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    try {
+      return crypto.randomUUID();
+    } catch {
+      // Fall through to fallback implementation
+    }
+  }
+
+  // Fallback UUID v4 generation for non-HTTPS environments
+  // This generates a valid UUID v4 using Math.random()
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
+ * Model statistics for leaderboard
+ */
+export interface ModelStats {
+  model: string;
+  modelName: string;
+  wins: number;
+  losses: number;
+  ties: number;
+  totalDebates: number;
+  winRate: number;
+  averageScore: number;
+  totalTokens: number;
+  totalCost: number;
+  averageCost: number;
+}
+
+/**
+ * Total statistics for leaderboard
+ */
+export interface TotalStats {
+  totalDebates: number;
+  totalCost: number;
+  totalTokens: number;
+  averageRounds: number;
+}
+
+/**
+ * Leaderboard statistics result
+ */
+export interface LeaderboardStats {
+  modelStatsArray: ModelStats[];
+  totalStats: TotalStats;
+}
+
+/**
+ * Calculates model statistics, topic statistics, and total statistics from debates.
+ * Extracted from leaderboard component for better testability and reusability.
+ *
+ * @param debates - Array of saved debates to analyze
+ * @param getModelNameFn - Function to get display name for a model slug
+ * @param cleanStringFn - Function to clean/format topic strings
+ * @returns Object containing model stats array, topic stats array, and total stats
+ */
+export function calculateModelStats(
+  debates: Array<{
+    finalResult?: {
+      winner?: "yes" | "no" | "tie";
+      aggregateScore?: { yes?: number; no?: number };
+    } | null;
+    yesModel?: string;
+    noModel?: string;
+    topic?: string;
+    rounds?: string;
+    usage?: { total_tokens?: number; cost?: number };
+  }>,
+  getModelNameFn: (slug: string) => string,
+  cleanStringFn: (str: string) => string
+): LeaderboardStats {
+  // Calculate model statistics
+  const modelMap = new Map<string, ModelStats>();
+
+  debates.forEach((debate) => {
+    if (!debate.finalResult || !debate.yesModel || !debate.noModel) return;
+
+    const yesModel = debate.yesModel;
+    const noModel = debate.noModel;
+    const winner = debate.finalResult.winner;
+    const aggregateScore = debate.finalResult.aggregateScore;
+
+    // Process YES model
+    if (!modelMap.has(yesModel)) {
+      modelMap.set(yesModel, {
+        model: yesModel,
+        modelName: getModelNameFn(yesModel),
+        wins: 0,
+        losses: 0,
+        ties: 0,
+        totalDebates: 0,
+        winRate: 0,
+        averageScore: 0,
+        totalTokens: 0,
+        totalCost: 0,
+        averageCost: 0,
+      });
+    }
+    const yesStats = modelMap.get(yesModel);
+    if (!yesStats) return;
+    yesStats.totalDebates++;
+    if (winner === "yes") yesStats.wins++;
+    else if (winner === "no") yesStats.losses++;
+    else if (winner === "tie") yesStats.ties++;
+    if (aggregateScore?.yes !== undefined) {
+      yesStats.averageScore =
+        (yesStats.averageScore * (yesStats.totalDebates - 1) + aggregateScore.yes) /
+        yesStats.totalDebates;
+    }
+    if (debate.usage?.total_tokens) {
+      yesStats.totalTokens += debate.usage.total_tokens;
+    }
+    if (debate.usage?.cost) {
+      yesStats.totalCost += debate.usage.cost;
+    }
+
+    // Process NO model
+    if (!modelMap.has(noModel)) {
+      modelMap.set(noModel, {
+        model: noModel,
+        modelName: getModelNameFn(noModel),
+        wins: 0,
+        losses: 0,
+        ties: 0,
+        totalDebates: 0,
+        winRate: 0,
+        averageScore: 0,
+        totalTokens: 0,
+        totalCost: 0,
+        averageCost: 0,
+      });
+    }
+    const noStats = modelMap.get(noModel);
+    if (!noStats) return;
+    noStats.totalDebates++;
+    if (winner === "no") noStats.wins++;
+    else if (winner === "yes") noStats.losses++;
+    else if (winner === "tie") noStats.ties++;
+    if (aggregateScore?.no !== undefined) {
+      noStats.averageScore =
+        (noStats.averageScore * (noStats.totalDebates - 1) + aggregateScore.no) /
+        noStats.totalDebates;
+    }
+    if (debate.usage?.total_tokens) {
+      noStats.totalTokens += debate.usage.total_tokens;
+    }
+    if (debate.usage?.cost) {
+      noStats.totalCost += debate.usage.cost;
+    }
+  });
+
+  // Calculate win rates and average costs
+  const statsArray = Array.from(modelMap.values()).map((stats) => {
+    const winRate =
+      stats.totalDebates > 0 ? ((stats.wins + stats.ties * 0.5) / stats.totalDebates) * 100 : 0;
+    const averageCost = stats.totalDebates > 0 ? stats.totalCost / stats.totalDebates : 0;
+    return {
+      ...stats,
+      winRate: Math.round(winRate * 100) / 100,
+      averageScore: Math.round(stats.averageScore * 100) / 100,
+      averageCost: Math.round(averageCost * 10000) / 10000,
+    };
+  });
+
+  // Calculate topic statistics
+  const topicMap = new Map<string, number>();
+  debates.forEach((debate) => {
+    const topic = cleanStringFn(debate.topic || "Untitled Debate");
+    topicMap.set(topic, (topicMap.get(topic) || 0) + 1);
+  });
+
+  // Calculate total statistics
+  const totalCost = debates.reduce((sum, d) => sum + (d.usage?.cost || 0), 0);
+  const totalTokens = debates.reduce((sum, d) => sum + (d.usage?.total_tokens || 0), 0);
+  const totalRounds = debates.reduce((sum, d) => sum + (parseInt(d.rounds || "0", 10) || 0), 0);
+  const avgRounds = debates.length > 0 ? totalRounds / debates.length : 0;
+
+  return {
+    modelStatsArray: statsArray,
+    totalStats: {
+      totalDebates: debates.length,
+      totalCost: Math.round(totalCost * 10000) / 10000,
+      totalTokens,
+      averageRounds: Math.round(avgRounds * 100) / 100,
+    },
+  };
 }

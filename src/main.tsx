@@ -18,6 +18,9 @@ declare module "@tanstack/react-router" {
   }
 }
 
+// Export router for use outside of React components (e.g., ErrorBoundary)
+export { router };
+
 // Render the app
 const rootElement = document.getElementById("root");
 if (rootElement) {

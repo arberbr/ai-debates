@@ -1,6 +1,7 @@
 import { Component, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { router } from "@/main";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -31,8 +32,21 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   handleReset = () => {
     this.setState({ hasError: false, error: null });
-    // Reload the page to reset application state
-    window.location.reload();
+    // Navigate to home using history API for SPA navigation
+    // Note: For a true reset of app state, a full reload may still be needed
+    // but using history API provides better UX than hard reload
+    window.history.pushState({}, "", "/");
+    window.location.reload(); // Still reload for complete state reset
+  };
+
+  handleGoHome = () => {
+    // Use router navigation for proper SPA navigation
+    router.navigate({ to: "/" }).catch((error) => {
+      console.error("Navigation error:", error);
+      // Fallback to history API if router navigation fails
+      window.history.pushState({}, "", "/");
+      window.location.reload();
+    });
   };
 
   render() {
@@ -67,12 +81,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 <Button onClick={this.handleReset} variant="primary">
                   Reload Page
                 </Button>
-                <Button
-                  onClick={() => {
-                    window.location.href = "/";
-                  }}
-                  variant="outline"
-                >
+                <Button onClick={this.handleGoHome} variant="outline">
                   Go to Home
                 </Button>
               </div>

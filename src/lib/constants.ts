@@ -31,6 +31,10 @@ export const DEBATE_CONFIG = {
   ERROR_MESSAGE_MAX_LENGTH: 200,
 } as const;
 
+export const STORAGE_QUOTA = {
+  MAX_SIZE: 5 * 1024 * 1024,
+} as const;
+
 /**
  * Animation and timing constants
  */
@@ -56,17 +60,58 @@ export const SSE_BUFFER = {
 } as const;
 
 /**
- * Gets the API base URL from environment variable or defaults to localhost:3001
- * In Vite, environment variables must be prefixed with VITE_ to be exposed to client-side code
- * Validates URL format at runtime
+ * Gets the API base URL from environment variable with environment-specific defaults.
+ *
+ * Environment variable: VITE_API_BASE_URL
+ * - In Vite, environment variables must be prefixed with VITE_ to be exposed to client-side code
+ *
+ * Defaults:
+ * - Development: http://localhost:3001
+ * - Production: https://api.example.com (should be overridden via environment variable)
+ *
+ * Validates URL format at runtime and warns if using HTTP in production.
+ *
+ * @returns The API base URL
+ * @example
+ * // Development
+ * // VITE_API_BASE_URL not set -> "http://localhost:3001"
+ *
+ * // Production
+ * // VITE_API_BASE_URL=https://api.example.com -> "https://api.example.com"
+ * // VITE_API_BASE_URL not set -> warns and uses default
  */
 export const getApiBaseUrl = (): string => {
-  const url = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001";
+  const isProduction = import.meta.env.PROD;
+  const defaultDevUrl = "http://localhost:3001";
+  const defaultProdUrl = "https://api.example.com"; // Should be overridden in production
+
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  const url = envUrl || (isProduction ? defaultProdUrl : defaultDevUrl);
+
   try {
-    new URL(url); // Validate URL format
+    const urlObj = new URL(url);
+
+    // Validate URL format and warn if using HTTP in production
+    if (isProduction && urlObj.protocol === "http:") {
+      console.warn(
+        "[getApiBaseUrl] WARNING: Using HTTP in production is insecure. " +
+          "Please set VITE_API_BASE_URL to an HTTPS URL. " +
+          "Using HTTP is not recommended for production environments."
+      );
+    }
+
+    // Warn if using default production URL
+    if (isProduction && !envUrl) {
+      console.warn(
+        "[getApiBaseUrl] VITE_API_BASE_URL is not set. " +
+          "Please set this environment variable in production. " +
+          `Using default: ${defaultProdUrl}`
+      );
+    }
+
     return url;
   } catch {
-    console.warn("Invalid API base URL, using default");
-    return "http://localhost:3001";
+    console.warn(`[getApiBaseUrl] Invalid API base URL: "${url}", using default: ${defaultDevUrl}`);
+    return defaultDevUrl;
   }
 };

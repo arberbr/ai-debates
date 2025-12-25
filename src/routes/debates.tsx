@@ -1,8 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { toast } from "sonner";
 import { FeatureErrorBoundary } from "@/components/FeatureErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDebates } from "@/hooks/useDebates";
@@ -12,6 +21,11 @@ import { calculateTotalReadingTimeForSide, formatDate24Hour, getModelName } from
 function DebatesComponent() {
   const navigate = useNavigate();
   const { debates: savedDebates, deleteDebate, isLoading } = useDebates();
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [debateToDelete, setDebateToDelete] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
@@ -77,21 +91,11 @@ function DebatesComponent() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={async (e) => {
+                            onClick={(e) => {
                               e.stopPropagation();
                               const debateTitle = cleanString(debate.topic || "Untitled Debate");
-                              const confirmed = window.confirm(
-                                `Are you sure you want to delete "${debateTitle}"?\n\nThis action cannot be undone.`
-                              );
-                              if (confirmed) {
-                                try {
-                                  deleteDebate(debate.debateId);
-                                  toast.success("Debate deleted successfully");
-                                } catch (error) {
-                                  toast.error("Failed to delete debate. Please try again.");
-                                  console.error("Delete error:", error);
-                                }
-                              }
+                              setDebateToDelete({ id: debate.debateId, title: debateTitle });
+                              setDeleteConfirmOpen(true);
                             }}
                             className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30 flex-shrink-0"
                             aria-label={`Delete debate "${debate.topic || "Untitled Debate"}"`}
@@ -159,6 +163,44 @@ function DebatesComponent() {
           )}
         </div>
       </FeatureErrorBoundary>
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Debate</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{debateToDelete?.title}"? This action cannot be
+              undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (debateToDelete) {
+                  try {
+                    deleteDebate(debateToDelete.id);
+                    toast.success("Debate deleted successfully");
+                    setDeleteConfirmOpen(false);
+                    setDebateToDelete(null);
+                  } catch (error) {
+                    const errorMessage =
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to delete debate. Please try again.";
+                    toast.error(errorMessage);
+                    console.error("Delete error:", error);
+                  }
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

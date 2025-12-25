@@ -70,7 +70,12 @@ export const MarkdownContent = memo(
               a: ({ children, href }) => {
                 // Sanitize URL using defaultUrlTransform for additional security
                 const safeHref = href ? defaultUrlTransform(href) : undefined;
-                if (!safeHref) {
+                if (!safeHref && href) {
+                  // Log unsafe URLs for security monitoring
+                  console.warn(
+                    `[MarkdownContent] Unsafe URL blocked and rendered as plain text:`,
+                    href
+                  );
                   // If URL is unsafe, render as plain text
                   return <span>{children}</span>;
                 }
@@ -94,8 +99,20 @@ export const MarkdownContent = memo(
       );
     } catch (error) {
       console.error("Markdown parsing error:", error);
+      // Show warning in development mode
+      if (import.meta.env.DEV) {
+        console.warn(
+          "[MarkdownContent] Markdown parsing failed, rendering raw content. Error:",
+          error
+        );
+      }
       return (
         <div className={className}>
+          {import.meta.env.DEV && (
+            <div className="mb-2 p-2 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded text-xs text-amber-800 dark:text-amber-200">
+              ⚠️ Markdown parsing failed, displaying raw content. Check console for details.
+            </div>
+          )}
           <pre className="whitespace-pre-wrap text-sm text-foreground/90">{content}</pre>
         </div>
       );

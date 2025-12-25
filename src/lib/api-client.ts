@@ -44,35 +44,68 @@ export class ApiClient {
   }
 
   /**
-   * Make a request with automatic retry and error handling
+   * Make a request with automatic retry, timeout, and error handling
    * @param endpoint - API endpoint path
    * @param options - Fetch options
    * @param retries - Number of retry attempts
+   * @param timeoutMs - Request timeout in milliseconds (default: 30000)
    * @returns Response object
    */
   async request(
     endpoint: string,
     options: RequestInit,
-    retries = TIMING.MAX_RETRY_ATTEMPTS
+    retries = TIMING.MAX_RETRY_ATTEMPTS,
+    timeoutMs = TIMING.API_TIMEOUT
   ): Promise<Response> {
     const url = `${this.baseUrl}${endpoint}`;
 
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
-        const response = await fetch(url, options);
+        // Create abort controller for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-        if (response.ok || attempt === retries - 1) {
+        // Merge abort signal with existing signal if present
+        const signal =
+          options.signal && controller.signal
+            ? (() => {
+                const combinedController = new AbortController();
+                // Forward abort from either signal
+                options.signal.addEventListener("abort", () => combinedController.abort());
+                controller.signal.addEventListener("abort", () => combinedController.abort());
+                return combinedController.signal;
+              })()
+            : controller.signal;
+
+        try {
+          const response = await fetch(url, { ...options, signal });
+
+          clearTimeout(timeoutId);
+
+          if (response.ok || attempt === retries - 1) {
+            return response;
+          }
+
+          // Only retry on network errors or 5xx errors
+          if (response.status >= 500 || response.status === 0) {
+            const delay = TIMING.RETRY_BASE_DELAY * 2 ** attempt;
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            continue;
+          }
+
           return response;
-        }
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
 
-        // Only retry on network errors or 5xx errors
-        if (response.status >= 500 || response.status === 0) {
-          const delay = TIMING.RETRY_BASE_DELAY * 2 ** attempt;
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          continue;
-        }
+          // Check if error is due to timeout
+          if (fetchError instanceof Error && fetchError.name === "AbortError") {
+            throw new Error(
+              `Request timeout after ${timeoutMs}ms. The server took too long to respond.`
+            );
+          }
 
-        return response;
+          throw fetchError;
+        }
       } catch (error) {
         if (attempt === retries - 1) throw error;
         const delay = TIMING.RETRY_BASE_DELAY * 2 ** attempt;
@@ -191,7 +224,17 @@ export class ApiClient {
 export const apiClient = new ApiClient();
 
 /**
- * Helper to create debate start config from debate parameters
+ * Helper function to create a debate start configuration object from debate parameters.
+ * Formats and validates the configuration needed to start a new debate via the API.
+ * @param params - Debate configuration parameters
+ * @param params.topic - The debate topic/question
+ * @param params.yesModel - Model slug for the "yes" side
+ * @param params.noModel - Model slug for the "no" side
+ * @param params.rounds - Number of rebuttal rounds as a string
+ * @param params.judgePrompt - Custom prompt for judges evaluating the debate
+ * @param params.title - Generated title for the debate
+ * @param params.apiKey - OpenRouter API key for authentication
+ * @returns Formatted debate start configuration object
  */
 export function createDebateStartConfig(params: {
   topic: string;

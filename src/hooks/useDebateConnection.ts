@@ -54,6 +54,79 @@ interface UseDebateConnectionOptions {
 }
 
 /**
+ * Result of parsing SSE buffer
+ */
+interface ParseSSEBufferResult {
+  events: SSEEventData[];
+  remainingBuffer: string;
+}
+
+/**
+ * Parses SSE buffer and extracts complete event messages
+ * Handles edge case where last line is a complete data message without trailing newline
+ * @param buffer - Current SSE buffer string
+ * @returns Object with parsed events and remaining buffer
+ */
+function parseSSEBuffer(buffer: string): ParseSSEBufferResult {
+  const events: SSEEventData[] = [];
+  const lines = buffer.split("\n");
+
+  // Check if last line is a complete data line (doesn't end with newline in split)
+  let remainingBuffer = "";
+  if (lines.length > 0) {
+    const lastLine = lines[lines.length - 1];
+    if (lastLine.startsWith("data: ")) {
+      // Try to parse it - if it's complete, process it
+      try {
+        const parsed = JSON.parse(lastLine.slice(6)) as SSEEventData;
+        events.push(parsed);
+        lines.pop(); // Remove from buffer since it's complete
+      } catch {
+        // Not complete JSON yet, keep in buffer
+        remainingBuffer = lines.pop() || "";
+      }
+    } else {
+      remainingBuffer = lines.pop() || "";
+    }
+  }
+
+  // Process all but the last line
+  for (const line of lines) {
+    if (line.startsWith("data: ")) {
+      try {
+        const parsed = JSON.parse(line.slice(6)) as SSEEventData;
+        events.push(parsed);
+      } catch (e) {
+        console.error("Error parsing SSE data:", e, "Line:", line);
+      }
+    }
+  }
+
+  return { events, remainingBuffer };
+}
+
+/**
+ * Checks if an error indicates an authentication/authorization issue
+ * @param error - Error instance or error message
+ * @returns True if error is an auth error
+ */
+function isAuthError(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    return error.isAuthError;
+  }
+
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  return (
+    errorMessage.includes("OpenRouter") ||
+    errorMessage.includes("API key") ||
+    errorMessage.includes("401") ||
+    errorMessage.includes("403") ||
+    errorMessage.includes("authentication") ||
+    errorMessage.includes("unauthorized")
+  );
+}
+
+/**
  * Custom hook for managing the debate SSE connection logic
  */
 export function useDebateConnection({
@@ -85,6 +158,7 @@ export function useDebateConnection({
       // Setup abort controller
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
+        abortControllerRef.current = null; // Clear reference
       }
       abortControllerRef.current = new AbortController();
       activeDebateIdRef.current = debateId;
@@ -147,18 +221,13 @@ export function useDebateConnection({
             break;
           }
 
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
+          // Process buffer and extract complete SSE messages
+          const result = parseSSEBuffer(buffer);
+          buffer = result.remainingBuffer;
 
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              try {
-                const parsed = JSON.parse(line.slice(6)) as SSEEventData;
-                onEventRef.current(parsed);
-              } catch (e) {
-                console.error("Error parsing SSE data:", e);
-              }
-            }
+          // Emit parsed events
+          for (const eventData of result.events) {
+            onEventRef.current(eventData);
           }
         }
       } catch (err: unknown) {
@@ -168,20 +237,8 @@ export function useDebateConnection({
 
         const errorMessage = err instanceof Error ? err.message : "Failed to start debate";
 
-        // Handle API Errors
-        if (err instanceof ApiError) {
-          if (err.isAuthError) {
-            clearApiKeyRef.current?.();
-          }
-        }
-
-        // Check for specific error strings if not caught by ApiError
-        if (
-          errorMessage.includes("OpenRouter") ||
-          errorMessage.includes("API key") ||
-          errorMessage.includes("401") ||
-          errorMessage.includes("403")
-        ) {
+        // Handle authentication errors - clear API key if auth error detected
+        if (isAuthError(err)) {
           clearApiKeyRef.current?.();
         }
 

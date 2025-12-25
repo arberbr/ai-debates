@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { STORAGE_QUOTA } from "@/lib/constants";
 import { formatBytes } from "@/lib/utils";
 
 /**
@@ -9,6 +10,16 @@ export function useLocalStorage() {
   // Cache the quota estimate to avoid async calls in synchronous code paths
   const quotaCacheRef = useRef<number | null>(null);
 
+  // Cache storage stats to avoid recalculating on each call
+  const statsCacheRef = useRef<{
+    usedBytes: number;
+    estimatedQuotaBytes: number;
+    usagePercent: number;
+    formattedUsed: string;
+    formattedQuota: string;
+    cacheKey: string;
+  } | null>(null);
+
   // Initialize quota cache asynchronously on mount
   useEffect(() => {
     const initQuota = async () => {
@@ -16,7 +27,7 @@ export function useLocalStorage() {
         if ("storage" in navigator && "estimate" in navigator.storage) {
           const estimate = await navigator.storage.estimate();
           if (estimate.quota && typeof estimate.quota === "number" && estimate.quota > 0) {
-            quotaCacheRef.current = Math.min(estimate.quota, 50 * 1024 * 1024);
+            quotaCacheRef.current = Math.min(estimate.quota, STORAGE_QUOTA.MAX_SIZE);
           }
         }
       } catch (e) {
@@ -25,6 +36,34 @@ export function useLocalStorage() {
       }
     };
     initQuota();
+  }, []);
+
+  /**
+   * Generate a cache key based on localStorage contents
+   * This is a simple hash of all keys and their lengths
+   */
+  const generateCacheKey = useCallback((): string => {
+    try {
+      const keys: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          const value = localStorage.getItem(key);
+          // Use key and value length for cache key (faster than full hash)
+          keys.push(`${key}:${value?.length || 0}`);
+        }
+      }
+      return keys.join("|");
+    } catch {
+      return "";
+    }
+  }, []);
+
+  /**
+   * Invalidate the stats cache (call when storage changes)
+   */
+  const invalidateStatsCache = useCallback(() => {
+    statsCacheRef.current = null;
   }, []);
   /**
    * Get an item from localStorage
@@ -61,35 +100,43 @@ export function useLocalStorage() {
    * @param value - The value to store (will be JSON stringified if not a string)
    * @throws Error if quota is exceeded or other storage errors occur
    */
-  const setItem = useCallback(<T>(key: string, value: T): void => {
-    try {
-      const serialized = typeof value === "string" ? value : JSON.stringify(value);
-      localStorage.setItem(key, serialized);
-    } catch (e) {
-      if (
-        e instanceof DOMException &&
-        (e.code === 22 || e.code === 1014 || e.name === "QuotaExceededError")
-      ) {
-        const error = new Error("Storage limit reached. Please free up space.");
-        error.name = "QuotaExceededError";
-        throw error;
+  const setItem = useCallback(
+    <T>(key: string, value: T): void => {
+      try {
+        const serialized = typeof value === "string" ? value : JSON.stringify(value);
+        localStorage.setItem(key, serialized);
+        invalidateStatsCache();
+      } catch (e) {
+        if (
+          e instanceof DOMException &&
+          (e.code === 22 || e.code === 1014 || e.name === "QuotaExceededError")
+        ) {
+          const error = new Error("Storage limit reached. Please free up space.");
+          error.name = "QuotaExceededError";
+          throw error;
+        }
+        console.error(`Error writing to localStorage key "${key}":`, e);
+        throw e;
       }
-      console.error(`Error writing to localStorage key "${key}":`, e);
-      throw e;
-    }
-  }, []);
+    },
+    [invalidateStatsCache]
+  );
 
   /**
    * Remove an item from localStorage
    * @param key - The storage key to remove
    */
-  const removeItem = useCallback((key: string): void => {
-    try {
-      localStorage.removeItem(key);
-    } catch (e) {
-      console.error(`Error removing localStorage key "${key}":`, e);
-    }
-  }, []);
+  const removeItem = useCallback(
+    (key: string): void => {
+      try {
+        localStorage.removeItem(key);
+        invalidateStatsCache();
+      } catch (e) {
+        console.error(`Error removing localStorage key "${key}":`, e);
+      }
+    },
+    [invalidateStatsCache]
+  );
 
   /**
    * Clear all items from localStorage
@@ -97,10 +144,11 @@ export function useLocalStorage() {
   const clear = useCallback((): void => {
     try {
       localStorage.clear();
+      invalidateStatsCache();
     } catch (e) {
       console.error("Error clearing localStorage:", e);
     }
-  }, []);
+  }, [invalidateStatsCache]);
 
   /**
    * Get a raw string value from localStorage (without JSON parsing)
@@ -116,7 +164,8 @@ export function useLocalStorage() {
   }, []);
 
   /**
-   * Get storage usage statistics (synchronous version using cached quota)
+   * Get storage usage statistics (cached to avoid recalculating on each call)
+   * Cache is invalidated when storage changes via setItem, removeItem, or clear.
    * @returns Object with current usage in bytes, estimated quota, and usage percentage
    */
   const getStorageStats = useCallback((): {
@@ -127,6 +176,20 @@ export function useLocalStorage() {
     formattedQuota: string;
   } => {
     try {
+      const cacheKey = generateCacheKey();
+
+      // Return cached stats if available and cache key matches
+      if (statsCacheRef.current && statsCacheRef.current.cacheKey === cacheKey) {
+        return {
+          usedBytes: statsCacheRef.current.usedBytes,
+          estimatedQuotaBytes: statsCacheRef.current.estimatedQuotaBytes,
+          usagePercent: statsCacheRef.current.usagePercent,
+          formattedUsed: statsCacheRef.current.formattedUsed,
+          formattedQuota: statsCacheRef.current.formattedQuota,
+        };
+      }
+
+      // Calculate stats
       let usedBytes = 0;
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -141,12 +204,24 @@ export function useLocalStorage() {
       const estimatedQuotaBytes = quotaCacheRef.current ?? 5 * 1024 * 1024;
       const usagePercent = Math.round((usedBytes / estimatedQuotaBytes) * 100);
 
-      return {
+      const stats = {
         usedBytes,
         estimatedQuotaBytes,
         usagePercent,
         formattedUsed: formatBytes(usedBytes),
         formattedQuota: formatBytes(estimatedQuotaBytes),
+        cacheKey,
+      };
+
+      // Cache the results
+      statsCacheRef.current = stats;
+
+      return {
+        usedBytes: stats.usedBytes,
+        estimatedQuotaBytes: stats.estimatedQuotaBytes,
+        usagePercent: stats.usagePercent,
+        formattedUsed: stats.formattedUsed,
+        formattedQuota: stats.formattedQuota,
       };
     } catch (e) {
       console.error("Error calculating storage stats:", e);
@@ -159,7 +234,7 @@ export function useLocalStorage() {
         formattedQuota: "5 MB",
       };
     }
-  }, []);
+  }, [generateCacheKey]);
 
   /**
    * Check if storage can accommodate new data before writing

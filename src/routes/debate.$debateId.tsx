@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DebateContent } from "@/components/debate/DebateContent";
 import { FinalResultCard } from "@/components/debate/FinalResultCard";
 import { JudgeEvaluationCard } from "@/components/debate/JudgeEvaluationCard";
@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiKey } from "@/hooks/useApiKey";
+import { useDebateSave } from "@/hooks/useDebateSave";
 import { useDebateStream } from "@/hooks/useDebateStream";
-import { useDebates } from "@/hooks/useDebates";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { STORAGE_KEYS } from "@/lib/constants";
 import { cleanString } from "@/lib/debate-utils";
@@ -23,10 +23,8 @@ function DebateComponent() {
   const [debateConfig, setDebateConfig] = useState<DebateConfig | null>(null);
   const [savedDebateState, setSavedDebateState] = useState<SavedDebate | null>(null);
   const [configLoadError, setConfigLoadError] = useState<string | null>(null);
-  const hasSavedRef = useRef(false);
 
   const { clearApiKey } = useApiKey();
-  const { saveDebate } = useDebates();
   const { getItem } = useLocalStorage();
 
   const {
@@ -154,73 +152,12 @@ function DebateComponent() {
       };
 
   // Save debate to localStorage when complete (only for stream debates, not saved ones)
-  useEffect(() => {
-    // Prevent infinite loops: only save once when debate is complete
-    if (
-      hasSavedRef.current ||
-      savedDebateState ||
-      !displayData.isComplete ||
-      (displayData.debateRounds.length === 0 &&
-        !displayData.openingStatements &&
-        !displayData.conclusions)
-    ) {
-      return;
-    }
-
-    // Determine models from multiple sources (priority: state > opening statements > conclusions > debateConfig)
-    const determinedYesModel =
-      displayData.yesModel ||
-      displayData.openingStatements?.yesStatement?.model ||
-      displayData.conclusions?.yesConclusion?.model ||
-      debateConfig?.yesModel ||
-      "";
-    const determinedNoModel =
-      displayData.noModel ||
-      displayData.openingStatements?.noStatement?.model ||
-      displayData.conclusions?.noConclusion?.model ||
-      debateConfig?.noModel ||
-      "";
-
-    const savedDebate: SavedDebate = {
-      debateId,
-      topic: displayData.displayTopic || debateConfig?.topic || "",
-      yesModel: determinedYesModel,
-      noModel: determinedNoModel,
-      rounds: debateConfig?.rounds || "3",
-      judgePrompt: debateConfig?.judgePrompt || "",
-      openingStatements: displayData.openingStatements || undefined,
-      debateRounds: displayData.debateRounds,
-      conclusions: displayData.conclusions || undefined,
-      judgeEvaluations: displayData.judgeEvaluations,
-      finalResult: displayData.finalResult || null,
-      usage: displayData.usage,
-      timestamp: new Date().toISOString(),
-    };
-
-    try {
-      saveDebate(savedDebate);
-      hasSavedRef.current = true; // Mark as saved to prevent re-saving
-    } catch (error) {
-      console.error("Error saving debate:", error);
-      // Note: Error is already logged, user can see it in console
-      // In a production app, you might want to show a toast notification here
-    }
-  }, [
-    savedDebateState,
-    displayData.isComplete,
-    displayData.debateRounds,
-    displayData.openingStatements,
-    displayData.conclusions,
-    displayData.yesModel,
-    displayData.noModel,
-    displayData.displayTopic,
-    displayData.judgeEvaluations,
-    displayData.finalResult,
-    displayData.usage,
+  useDebateSave({
     debateId,
+    savedDebateState,
+    displayData,
     debateConfig,
-    saveDebate,
-  ]);
+  });
 
   // Add loading check
   const isLoading = !debateConfig && !savedDebateState && !configLoadError;

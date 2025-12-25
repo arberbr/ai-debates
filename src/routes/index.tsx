@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useApiKey } from "@/hooks/useApiKey";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { DEBATE_CONFIG, MODEL_OPTIONS, STORAGE_KEYS, TIMING } from "@/lib/constants";
+import { generateUUID } from "@/lib/utils";
 
 function IndexComponent() {
   const navigate = useNavigate();
@@ -50,6 +51,15 @@ function IndexComponent() {
     yesModel?: string;
     noModel?: string;
   }>({});
+
+  /**
+   * Validates that a model slug is in the allowed list
+   * @param slug - Model slug to validate
+   * @returns True if the model slug is valid
+   */
+  const isValidModel = (slug: string): boolean => {
+    return MODEL_OPTIONS.some((model) => model.slug === slug);
+  };
 
   // Rate limiting: track last submission time to prevent spamming
   const RATE_LIMIT_MS = 5000; // 5 seconds between submissions
@@ -100,10 +110,14 @@ function IndexComponent() {
 
         if (!yesModel) {
           errors.yesModel = "Please select a model for the Yes side";
+        } else if (!isValidModel(yesModel)) {
+          errors.yesModel = "Invalid model selected";
         }
 
         if (!noModel) {
           errors.noModel = "Please select a model for the No side";
+        } else if (!isValidModel(noModel)) {
+          errors.noModel = "Invalid model selected";
         }
 
         if (Object.keys(errors).length > 0) {
@@ -122,7 +136,7 @@ function IndexComponent() {
         }
 
         // Generate a UUID for the debate
-        const debateId = crypto.randomUUID();
+        const debateId = generateUUID();
 
         // Save debate config to localStorage before navigating
         const debateConfig = {
@@ -422,7 +436,16 @@ function IndexComponent() {
                         max={DEBATE_CONFIG.MAX_ROUNDS.toString()}
                         step="1"
                         value={field.state.value}
-                        onChange={(e) => field.handleChange(Number(e.target.value))}
+                        onChange={(e) => {
+                          const value = Number(e.target.value);
+                          if (
+                            Number.isInteger(value) &&
+                            value >= DEBATE_CONFIG.MIN_ROUNDS &&
+                            value <= DEBATE_CONFIG.MAX_ROUNDS
+                          ) {
+                            field.handleChange(value);
+                          }
+                        }}
                         onBlur={field.handleBlur}
                         placeholder="e.g., 3"
                         className="w-full"

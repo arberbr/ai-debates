@@ -44,6 +44,9 @@ export function useDebateStream({
   const hasStartedRef = useRef(false);
   const startedDebateIdRef = useRef<string | null>(null);
   const isInitializingRef = useRef(false);
+  const initializeDebateAsyncRef = useRef<
+    ((config: DebateConfig, apiKey: string) => Promise<void>) | null
+  >(null);
 
   // 3. Title Generation
   const { generateTitle, generateFallbackTitle } = useTitleGeneration();
@@ -148,6 +151,43 @@ export function useDebateStream({
     clearApiKey,
   });
 
+  /**
+   * Initializes the debate by generating title and starting the stream.
+   * Extracted to separate function to improve readability and testability.
+   */
+  const initializeDebateAsync = useCallback(
+    async (config: DebateConfig, apiKey: string) => {
+      try {
+        // 1. Generate Title
+        actions.setStatus("Generating title...");
+        let title = await generateTitle(config.topic, apiKey);
+        if (!title) {
+          title = generateFallbackTitle(config.topic);
+        }
+        actions.setDisplayTopic(title);
+
+        // 2. Start Stream
+        actions.setStatus("Starting debate...");
+        await startConnection(config, title, apiKey);
+      } catch (error) {
+        console.error("Error initializing debate:", error);
+        handleError(
+          error instanceof Error ? error.message : "Failed to initialize debate. Please try again."
+        );
+        throw error;
+      } finally {
+        // Mark initialization as complete only after async operations complete
+        isInitializingRef.current = false;
+      }
+    },
+    [actions, generateTitle, generateFallbackTitle, startConnection, handleError]
+  );
+
+  // Keep the ref updated with the latest callback
+  useEffect(() => {
+    initializeDebateAsyncRef.current = initializeDebateAsync;
+  }, [initializeDebateAsync]);
+
   // Start Debate Logic
   useEffect(() => {
     // Basic guards
@@ -184,27 +224,11 @@ export function useDebateStream({
     }
     const apiKey = storedApiKey.trim();
 
-    // Async Start
-    const init = async () => {
-      try {
-        // 1. Generate Title
-        actions.setStatus("Generating title...");
-        let title = await generateTitle(debateConfig.topic, apiKey);
-        if (!title) {
-          title = generateFallbackTitle(debateConfig.topic);
-        }
-        actions.setDisplayTopic(title);
-
-        // 2. Start Stream
-        actions.setStatus("Starting debate...");
-        await startConnection(debateConfig, title, apiKey);
-      } finally {
-        // Mark initialization as complete only after async operations complete
-        isInitializingRef.current = false;
-      }
-    };
-
-    init();
+    // Start async initialization using ref to avoid dependency issues
+    const initFn = initializeDebateAsyncRef.current;
+    if (initFn) {
+      initFn(debateConfig, apiKey);
+    }
 
     // Cleanup
     return () => {
@@ -216,17 +240,7 @@ export function useDebateStream({
       }
       isInitializingRef.current = false;
     };
-  }, [
-    debateConfig,
-    debateId,
-    state.isComplete,
-    actions,
-    generateTitle,
-    generateFallbackTitle,
-    startConnection,
-    cancelConnection,
-    handleError,
-  ]);
+  }, [debateConfig, debateId, state.isComplete, actions, cancelConnection, handleError]);
 
   // Return the public interface expected by components
   return {

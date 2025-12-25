@@ -7,26 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDebates } from "@/hooks/useDebates";
 import { cleanString } from "@/lib/debate-utils";
-import { getModelName } from "@/lib/utils";
-
-interface ModelStats {
-  model: string;
-  modelName: string;
-  wins: number;
-  losses: number;
-  ties: number;
-  totalDebates: number;
-  winRate: number;
-  averageScore: number;
-  totalTokens: number;
-  totalCost: number;
-  averageCost: number;
-}
-
-interface TopicStats {
-  topic: string;
-  count: number;
-}
+import { calculateModelStats, getModelName, type ModelStats, type TotalStats } from "@/lib/utils";
 
 function LeaderboardComponent() {
   const navigate = useNavigate();
@@ -36,156 +17,32 @@ function LeaderboardComponent() {
   );
 
   // Calculate statistics (separate from sorting for better performance)
-  const { modelStatsArray, topicStats, totalStats } = useMemo(() => {
+  const { modelStatsArray, totalStats } = useMemo(() => {
     // Return empty stats if loading or no debates
     if (isLoading || savedDebates.length === 0) {
       return {
         modelStatsArray: [] as ModelStats[],
-        topicStats: [] as TopicStats[],
         totalStats: {
           totalDebates: 0,
           totalCost: 0,
           totalTokens: 0,
           averageRounds: 0,
-        },
+        } as TotalStats,
       };
     }
 
     try {
-      const debates = savedDebates;
-
-      // Calculate model statistics
-      const modelMap = new Map<string, ModelStats>();
-
-      debates.forEach((debate) => {
-        if (!debate.finalResult || !debate.yesModel || !debate.noModel) return;
-
-        const yesModel = debate.yesModel;
-        const noModel = debate.noModel;
-        const winner = debate.finalResult.winner;
-        const aggregateScore = debate.finalResult.aggregateScore;
-
-        // Process YES model
-        if (!modelMap.has(yesModel)) {
-          modelMap.set(yesModel, {
-            model: yesModel,
-            modelName: getModelName(yesModel),
-            wins: 0,
-            losses: 0,
-            ties: 0,
-            totalDebates: 0,
-            winRate: 0,
-            averageScore: 0,
-            totalTokens: 0,
-            totalCost: 0,
-            averageCost: 0,
-          });
-        }
-        const yesStats = modelMap.get(yesModel);
-        if (!yesStats) return;
-        yesStats.totalDebates++;
-        if (winner === "yes") yesStats.wins++;
-        else if (winner === "no") yesStats.losses++;
-        else if (winner === "tie") yesStats.ties++;
-        if (aggregateScore?.yes) {
-          yesStats.averageScore =
-            (yesStats.averageScore * (yesStats.totalDebates - 1) + aggregateScore.yes) /
-            yesStats.totalDebates;
-        }
-        if (debate.usage?.total_tokens) {
-          yesStats.totalTokens += debate.usage.total_tokens;
-        }
-        if (debate.usage?.cost) {
-          yesStats.totalCost += debate.usage.cost;
-        }
-
-        // Process NO model
-        if (!modelMap.has(noModel)) {
-          modelMap.set(noModel, {
-            model: noModel,
-            modelName: getModelName(noModel),
-            wins: 0,
-            losses: 0,
-            ties: 0,
-            totalDebates: 0,
-            winRate: 0,
-            averageScore: 0,
-            totalTokens: 0,
-            totalCost: 0,
-            averageCost: 0,
-          });
-        }
-        const noStats = modelMap.get(noModel);
-        if (!noStats) return;
-        noStats.totalDebates++;
-        if (winner === "no") noStats.wins++;
-        else if (winner === "yes") noStats.losses++;
-        else if (winner === "tie") noStats.ties++;
-        if (aggregateScore?.no) {
-          noStats.averageScore =
-            (noStats.averageScore * (noStats.totalDebates - 1) + aggregateScore.no) /
-            noStats.totalDebates;
-        }
-        if (debate.usage?.total_tokens) {
-          noStats.totalTokens += debate.usage.total_tokens;
-        }
-        if (debate.usage?.cost) {
-          noStats.totalCost += debate.usage.cost;
-        }
-      });
-
-      // Calculate win rates and average costs
-      const statsArray = Array.from(modelMap.values()).map((stats) => {
-        const winRate =
-          stats.totalDebates > 0 ? ((stats.wins + stats.ties * 0.5) / stats.totalDebates) * 100 : 0;
-        const averageCost = stats.totalDebates > 0 ? stats.totalCost / stats.totalDebates : 0;
-        return {
-          ...stats,
-          winRate: Math.round(winRate * 100) / 100,
-          averageScore: Math.round(stats.averageScore * 100) / 100,
-          averageCost: Math.round(averageCost * 10000) / 10000,
-        };
-      });
-
-      // Calculate topic statistics
-      const topicMap = new Map<string, number>();
-      debates.forEach((debate) => {
-        const topic = cleanString(debate.topic || "Untitled Debate");
-        topicMap.set(topic, (topicMap.get(topic) || 0) + 1);
-      });
-
-      const topics = Array.from(topicMap.entries())
-        .map(([topic, count]) => ({ topic, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10); // Top 10 topics
-
-      // Calculate total statistics
-      const totalCost = debates.reduce((sum, d) => sum + (d.usage?.cost || 0), 0);
-      const totalTokens = debates.reduce((sum, d) => sum + (d.usage?.total_tokens || 0), 0);
-      const totalRounds = debates.reduce((sum, d) => sum + (parseInt(d.rounds, 10) || 0), 0);
-      const avgRounds = debates.length > 0 ? totalRounds / debates.length : 0;
-
-      return {
-        modelStatsArray: statsArray,
-        topicStats: topics,
-        totalStats: {
-          totalDebates: debates.length,
-          totalCost: Math.round(totalCost * 10000) / 10000,
-          totalTokens,
-          averageRounds: Math.round(avgRounds * 100) / 100,
-        },
-      };
+      return calculateModelStats(savedDebates, getModelName, cleanString);
     } catch (e) {
-      console.error("Error loading debates:", e);
+      console.error("Error calculating statistics:", e);
       return {
         modelStatsArray: [] as ModelStats[],
-        topicStats: [] as TopicStats[],
         totalStats: {
           totalDebates: 0,
           totalCost: 0,
           totalTokens: 0,
           averageRounds: 0,
-        },
+        } as TotalStats,
       };
     }
   }, [savedDebates, isLoading]);
@@ -452,35 +309,6 @@ function LeaderboardComponent() {
               )}
             </CardContent>
           </Card>
-
-          {/* Most Debated Topics */}
-          {topicStats.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Most Debated Topics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {topicStats.map((topicStat, index) => (
-                    <div
-                      key={`${topicStat.topic}-${index}`}
-                      className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg font-bold text-muted-foreground w-8">
-                          #{index + 1}
-                        </span>
-                        <span className="font-medium">{topicStat.topic}</span>
-                      </div>
-                      <span className="text-sm text-muted-foreground font-semibold">
-                        {topicStat.count} debate{topicStat.count !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Actions */}
           <div className="flex gap-4 justify-center">

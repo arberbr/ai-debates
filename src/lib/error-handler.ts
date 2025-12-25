@@ -20,7 +20,11 @@ export function handleError(error: unknown, context: string, showToast = true): 
 }
 
 /**
- * Handle quota exceeded errors specifically
+ * Handles quota exceeded errors specifically.
+ * Checks if an error is a QuotaExceededError and displays appropriate feedback.
+ * @param error - The error object to check
+ * @param showToast - Whether to show a toast notification to the user (default: true)
+ * @returns True if the error was a quota error, false otherwise
  */
 export function handleQuotaError(error: unknown, showToast = true): boolean {
   if (error instanceof Error && error.name === "QuotaExceededError") {
