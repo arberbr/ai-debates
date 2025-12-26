@@ -45,9 +45,9 @@ function AboutComponent() {
           <CardContent className="space-y-3">
             <p className="text-base text-foreground leading-relaxed">
               When you provide a debate topic, the system automatically generates a concise,
-              descriptive title (7-12 words) to make it easier to identify and reference your
-              debate later. This helps organize your debates and makes them easier to find in your
-              debates list.
+              descriptive title (7-12 words) to make it easier to identify and reference your debate
+              later. This helps organize your debates and makes them easier to find in your debates
+              list.
             </p>
           </CardContent>
         </Card>
@@ -65,7 +65,9 @@ function AboutComponent() {
               statement presents the main arguments and supporting evidence for their position.
             </p>
             <ul className="list-disc list-outside space-y-2 ml-6 text-base text-foreground">
-              <li>Each model receives the debate topic and their assigned position (FOR or AGAINST)</li>
+              <li>
+                Each model receives the debate topic and their assigned position (FOR or AGAINST)
+              </li>
               <li>Models present their main arguments and supporting evidence</li>
               <li>They anticipate potential counterarguments</li>
             </ul>
@@ -91,11 +93,12 @@ function AboutComponent() {
             <ul className="list-disc list-outside space-y-2 ml-6 text-base text-foreground">
               <li>
                 <strong>Round 1:</strong> Each side analyzes and rebuts the opponent's opening
-                statement. They dissect arguments, identify weaknesses, and present counterarguments.
+                statement. They dissect arguments, identify weaknesses, and present
+                counterarguments.
               </li>
               <li>
-                <strong>Subsequent Rounds:</strong> Models focus on the opponent's arguments from the
-                previous round, addressing specific points and strengthening their position.
+                <strong>Subsequent Rounds:</strong> Models focus on the opponent's arguments from
+                the previous round, addressing specific points and strengthening their position.
               </li>
             </ul>
             <p className="text-base text-muted-foreground leading-relaxed">
@@ -370,8 +373,8 @@ function AboutComponent() {
             <div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Markdown Support</h3>
               <p className="text-base text-muted-foreground leading-relaxed">
-                All debate content is rendered with full markdown support, making arguments easier to
-                read with proper formatting, lists, code blocks, and other markdown features.
+                All debate content is rendered with full markdown support, making arguments easier
+                to read with proper formatting, lists, code blocks, and other markdown features.
               </p>
             </div>
           </CardContent>
@@ -405,8 +408,8 @@ function AboutComponent() {
               </li>
               <li>
                 <strong>Rate Limiting:</strong> The app includes a 5-second rate limit between
-                submissions to prevent accidental duplicate debates. If you see a rate limit message,
-                simply wait a few seconds before trying again.
+                submissions to prevent accidental duplicate debates. If you see a rate limit
+                message, simply wait a few seconds before trying again.
               </li>
             </ul>
           </CardContent>

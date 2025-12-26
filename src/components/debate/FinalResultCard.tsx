@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import type { FinalResult } from "@/lib/types";
 
@@ -5,12 +6,25 @@ interface FinalResultCardProps {
   finalResult: FinalResult;
 }
 
-export const FinalResultCard = ({ finalResult }: FinalResultCardProps) => {
-  const winnerColor = {
-    yes: "bg-blue-500/20 text-blue-700 dark:text-blue-400",
-    no: "bg-red-500/20 text-red-700 dark:text-red-400",
-    tie: "bg-yellow-500/20 text-yellow-900 dark:text-yellow-400",
-  }[finalResult.winner || "tie"];
+const WINNER_COLORS = {
+  yes: "bg-blue-500/20 text-blue-700 dark:text-blue-400",
+  no: "bg-red-500/20 text-red-700 dark:text-red-400",
+  tie: "bg-yellow-500/20 text-yellow-900 dark:text-yellow-400",
+} as const;
+
+export const FinalResultCard = memo(({ finalResult }: FinalResultCardProps) => {
+  const winnerColor = useMemo(
+    () => WINNER_COLORS[finalResult.winner || "tie"],
+    [finalResult.winner]
+  );
+
+  const aggregateScore = useMemo(
+    () => ({
+      yes: finalResult.aggregateScore?.yes.toFixed(1) ?? "0.0",
+      no: finalResult.aggregateScore?.no.toFixed(1) ?? "0.0",
+    }),
+    [finalResult.aggregateScore]
+  );
 
   return (
     <Card
@@ -33,14 +47,14 @@ export const FinalResultCard = ({ finalResult }: FinalResultCardProps) => {
             <div className="flex-1 text-center">
               <div className="text-xs text-muted-foreground mb-2 font-medium">FOR</div>
               <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                {finalResult.aggregateScore.yes.toFixed(1)}
+                {aggregateScore.yes}
               </div>
             </div>
             <div className="w-px h-16 bg-border"></div>
             <div className="flex-1 text-center">
               <div className="text-xs text-muted-foreground mb-2 font-medium">AGAINST</div>
               <div className="text-3xl font-bold text-red-600 dark:text-red-400">
-                {finalResult.aggregateScore.no.toFixed(1)}
+                {aggregateScore.no}
               </div>
             </div>
           </div>
@@ -48,4 +62,6 @@ export const FinalResultCard = ({ finalResult }: FinalResultCardProps) => {
       </div>
     </Card>
   );
-};
+});
+
+FinalResultCard.displayName = "FinalResultCard";

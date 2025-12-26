@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import type { JudgeEvaluation } from "@/lib/types";
 import { MarkdownContent } from "./MarkdownContent";
@@ -6,12 +7,19 @@ interface JudgeEvaluationCardProps {
   evaluation: JudgeEvaluation;
 }
 
-export const JudgeEvaluationCard = ({ evaluation }: JudgeEvaluationCardProps) => {
-  const winnerColor = {
-    yes: "bg-blue-500/25 text-blue-700 dark:text-blue-300 border border-blue-500/30",
-    no: "bg-red-500/25 text-red-900 dark:text-red-300 border border-red-500/30",
-    tie: "bg-yellow-500/25 text-yellow-900 dark:text-yellow-300 border border-yellow-500/30",
-  }[evaluation.winner || "tie"];
+const WINNER_COLORS = {
+  yes: "bg-blue-500/25 text-blue-700 dark:text-blue-300 border border-blue-500/30",
+  no: "bg-red-500/25 text-red-900 dark:text-red-300 border border-red-500/30",
+  tie: "bg-yellow-500/25 text-yellow-900 dark:text-yellow-300 border border-yellow-500/30",
+} as const;
+
+export const JudgeEvaluationCard = memo(({ evaluation }: JudgeEvaluationCardProps) => {
+  const winnerColor = useMemo(() => WINNER_COLORS[evaluation.winner || "tie"], [evaluation.winner]);
+
+  const evaluationContent = useMemo(
+    () => evaluation.reasoning || evaluation.evaluation,
+    [evaluation.reasoning, evaluation.evaluation]
+  );
 
   return (
     <Card
@@ -76,11 +84,13 @@ export const JudgeEvaluationCard = ({ evaluation }: JudgeEvaluationCardProps) =>
           </h4>
           <div className="prose prose-base dark:prose-invert max-w-none">
             <div className="text-[15px] leading-7 text-foreground/95 space-y-4 px-2">
-              <MarkdownContent content={evaluation.reasoning || evaluation.evaluation} />
+              <MarkdownContent content={evaluationContent} />
             </div>
           </div>
         </section>
       </div>
     </Card>
   );
-};
+});
+
+JudgeEvaluationCard.displayName = "JudgeEvaluationCard";

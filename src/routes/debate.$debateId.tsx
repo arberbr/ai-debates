@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { DebateContent } from "@/components/debate/DebateContent";
 import { FinalResultCard } from "@/components/debate/FinalResultCard";
 import { JudgeEvaluationCard } from "@/components/debate/JudgeEvaluationCard";
@@ -10,25 +10,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorAlertWithActions } from "@/components/ui/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiKey } from "@/hooks/useApiKey";
+import { useDebateLoader } from "@/hooks/useDebateLoader";
 import { useDebateSave } from "@/hooks/useDebateSave";
 import { useDebateStream } from "@/hooks/useDebateStream";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { STORAGE_KEYS } from "@/lib/constants";
 import { cleanString } from "@/lib/debate-utils";
-import { extractErrorMessage, isCreditLimitError } from "@/lib/error-utils";
-import { debateConfigSchema } from "@/lib/schemas";
-import type { DebateConfig, SavedDebate } from "@/lib/types";
-import { getCurrentTimestamp } from "@/lib/utils";
+import { isCreditLimitError } from "@/lib/error-utils";
 
 function DebateComponent() {
   const { debateId } = Route.useParams();
   const navigate = useNavigate();
-  const [debateConfig, setDebateConfig] = useState<DebateConfig | null>(null);
-  const [savedDebateState, setSavedDebateState] = useState<SavedDebate | null>(null);
-  const [configLoadError, setConfigLoadError] = useState<string | null>(null);
-
   const { clearApiKey } = useApiKey();
-  const { getItem } = useLocalStorage();
+
+  const { debateConfig, savedDebateState, configLoadError, isLoading } = useDebateLoader(debateId);
 
   const {
     status,
@@ -51,79 +44,6 @@ function DebateComponent() {
       console.error("Debate stream error:", errorMessage);
     }, []),
   });
-
-  // Load saved debate or config on mount
-  useEffect(() => {
-    setConfigLoadError(null);
-
-    try {
-      // First, check if this debate is already saved in localStorage
-      const savedDebates = getItem<SavedDebate[]>(STORAGE_KEYS.SAVED_DEBATES, []);
-      if (savedDebates && Array.isArray(savedDebates)) {
-        const savedDebate = savedDebates.find((d) => d.debateId === debateId);
-
-        if (savedDebate?.debateRounds && savedDebate.debateRounds.length > 0) {
-          setSavedDebateState(savedDebate);
-          return; // Don't load config if debate is already saved
-        }
-      }
-
-      // Try to load config from pending debates (new debates)
-      const pendingDebates = getItem<Record<string, DebateConfig>>(
-        STORAGE_KEYS.PENDING_DEBATES,
-        {}
-      );
-
-      if (!pendingDebates || typeof pendingDebates !== "object") {
-        setConfigLoadError("No pending debates found. Please start a new debate.");
-        console.error("No pending debates found in localStorage for debateId:", debateId);
-        return;
-      }
-
-      const rawConfig = pendingDebates[debateId] || null;
-
-      if (!rawConfig) {
-        setConfigLoadError(
-          `No debate configuration found for ID: ${debateId}. Please start a new debate.`
-        );
-        console.error("No config found for debateId:", debateId);
-        return;
-      }
-
-      // Validate config with Zod
-      const validationResult = debateConfigSchema.safeParse(rawConfig);
-
-      if (!validationResult.success) {
-        const errorMsg = "Invalid debate configuration: missing required fields or invalid format.";
-        setConfigLoadError(errorMsg);
-        console.error("Invalid config found:", {
-          errors: validationResult.error.format(),
-          config: rawConfig,
-        });
-        return;
-      }
-
-      const config = validationResult.data;
-
-      // Set the config - this will trigger useDebateStream to start
-      setDebateConfig({
-        debateId: config.debateId || debateId,
-        topic: config.topic,
-        yesModel: config.yesModel,
-        noModel: config.noModel,
-        rounds: config.rounds || "3",
-        judgePrompt: config.judgePrompt || "",
-        timestamp: config.timestamp || getCurrentTimestamp(),
-      });
-    } catch (e) {
-      const errorMessage = extractErrorMessage(
-        e,
-        "An unexpected error occurred while loading the debate."
-      );
-      setConfigLoadError(errorMessage);
-      console.error("Error loading pending debate config:", e);
-    }
-  }, [debateId, getItem]);
 
   // Use saved debate state if available, otherwise use stream state
   const displayData = savedDebateState
@@ -163,9 +83,6 @@ function DebateComponent() {
     displayData,
     debateConfig,
   });
-
-  // Add loading check
-  const isLoading = !debateConfig && !savedDebateState && !configLoadError;
 
   return (
     <main className="flex flex-col items-center justify-start p-8 bg-background">

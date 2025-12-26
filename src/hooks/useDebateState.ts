@@ -98,6 +98,26 @@ function debateReducer(state: DebateState, action: DebateAction): DebateState {
 }
 
 /**
+ * Type for debate state actions
+ */
+export type DebateStateActions = {
+  setStatus: (status: string) => void;
+  setDisplayTopic: (topic: string) => void;
+  setModels: (yesModel: string, noModel: string) => void;
+  setOpeningStatements: (statements: OpeningStatements) => void;
+  addRound: (round: DebateRound) => void;
+  setRounds: (rounds: DebateRound[]) => void;
+  setConclusions: (conclusions: Conclusions) => void;
+  addJudgeEvaluation: (evaluation: JudgeEvaluation) => void;
+  setJudgeEvaluations: (evaluations: JudgeEvaluation[]) => void;
+  setFinalResult: (result: FinalResult) => void;
+  setUsage: (usage: UsageData) => void;
+  setError: (error: string) => void;
+  completeDebate: () => void;
+  resetState: (initialOverride?: Partial<DebateState>) => void;
+};
+
+/**
  * Custom hook for managing debate state
  */
 export function useDebateState() {
@@ -106,7 +126,7 @@ export function useDebateState() {
   // Use stable dispatch reference - actions don't need individual useCallback
   // since dispatch is stable from useReducer
   const actions = useMemo(
-    () => ({
+    (): DebateStateActions => ({
       setStatus: (status: string) => dispatch({ type: "SET_STATUS", payload: status }),
       setDisplayTopic: (topic: string) => dispatch({ type: "SET_TOPIC", payload: topic }),
       setModels: (yesModel: string, noModel: string) =>

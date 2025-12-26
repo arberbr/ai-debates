@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef } from "react";
 import { ApiError, apiClient, createDebateStartConfig } from "@/lib/api-client";
-import { SSE_BUFFER, STORAGE_KEYS, TIMING } from "@/lib/constants";
+import { SSE_BUFFER, STORAGE_KEYS } from "@/lib/constants";
 import { isAuthError as checkAuthError } from "@/lib/error-utils";
+import {
+  calculateReconnectDelay,
+  createReconnectionConfig,
+  getReconnectionStatusMessage,
+  shouldAttemptReconnect,
+} from "@/lib/reconnection-utils";
 import type {
   Conclusions,
   DebateConfig,
@@ -126,7 +132,7 @@ export function useDebateConnection({
 }: UseDebateConnectionOptions) {
   const abortControllerRef = useRef<AbortController | null>(null);
   const activeDebateIdRef = useRef<string | null>(null);
-  const reconnectAttemptsRef = useRef(0);
+  const reconnectConfigRef = useRef(createReconnectionConfig());
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastConfigRef = useRef<{ config: DebateConfig; title: string; apiKey: string } | null>(
     null
@@ -158,22 +164,25 @@ export function useDebateConnection({
    */
   const attemptReconnect = useCallback(
     async (config: DebateConfig, title: string, apiKey: string) => {
-      if (reconnectAttemptsRef.current >= TIMING.SSE_MAX_RECONNECT_ATTEMPTS) {
+      const reconnectConfig = reconnectConfigRef.current;
+
+      if (!shouldAttemptReconnect(reconnectConfig)) {
         const errorMessage =
           "Failed to reconnect after multiple attempts. Please try starting a new debate.";
         console.error(errorMessage);
         onErrorRef.current(errorMessage);
         onEventRef.current({ stage: "error", message: errorMessage });
-        reconnectAttemptsRef.current = 0;
+        reconnectConfig.resetAttempts();
         return;
       }
 
-      reconnectAttemptsRef.current++;
-      const delay = TIMING.SSE_RECONNECT_BASE_DELAY * reconnectAttemptsRef.current;
+      reconnectConfig.incrementAttempt();
+      const attemptNumber = reconnectConfig.getCurrentAttempt();
+      const delay = calculateReconnectDelay(attemptNumber, reconnectConfig.baseDelay);
 
       onEventRef.current({
         stage: "status_update",
-        message: `Reconnecting... (attempt ${reconnectAttemptsRef.current}/${TIMING.SSE_MAX_RECONNECT_ATTEMPTS})`,
+        message: getReconnectionStatusMessage(attemptNumber, reconnectConfig.maxAttempts),
       });
 
       reconnectTimeoutRef.current = setTimeout(async () => {
@@ -182,7 +191,7 @@ export function useDebateConnection({
           if (startFn) {
             await startFn(config, title, apiKey, true);
             // Reset attempts on successful reconnection
-            reconnectAttemptsRef.current = 0;
+            reconnectConfig.resetAttempts();
           }
         } catch (error) {
           // Will trigger another reconnect attempt if it's a transient error
@@ -209,7 +218,7 @@ export function useDebateConnection({
       // Store config for potential reconnection
       if (!isReconnect) {
         lastConfigRef.current = { config, title, apiKey };
-        reconnectAttemptsRef.current = 0;
+        reconnectConfigRef.current.resetAttempts();
       }
 
       try {
@@ -291,7 +300,7 @@ export function useDebateConnection({
         // Handle authentication errors - clear API key if auth error detected
         if (isAuthError(err)) {
           clearApiKeyRef.current?.();
-          reconnectAttemptsRef.current = 0;
+          reconnectConfigRef.current.resetAttempts();
           onErrorRef.current(errorMessage);
           onEventRef.current({ stage: "error", message: errorMessage });
           return;
@@ -316,7 +325,7 @@ export function useDebateConnection({
         } else {
           // Non-transient error or reconnection failed
           console.error("Debate connection error:", err);
-          reconnectAttemptsRef.current = 0;
+          reconnectConfigRef.current.resetAttempts();
           onErrorRef.current(errorMessage);
           onEventRef.current({ stage: "error", message: errorMessage });
         }
@@ -358,7 +367,7 @@ export function useDebateConnection({
       reconnectTimeoutRef.current = null;
     }
     activeDebateIdRef.current = null;
-    reconnectAttemptsRef.current = 0;
+    reconnectConfigRef.current.resetAttempts();
     lastConfigRef.current = null;
   }, []);
 
