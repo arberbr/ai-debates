@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { TIMING } from "@/lib/constants";
 
 interface ApiKeyCardProps {
@@ -54,6 +55,7 @@ export function ApiKeyCard({
       </CardHeader>
       <CardContent>
         <div className="flex flex-col gap-2">
+          <Label htmlFor="api-key">OpenRouter API Key</Label>
           <Input
             id="api-key"
             type="password"

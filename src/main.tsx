@@ -21,6 +21,13 @@ declare module "@tanstack/react-router" {
 // Export router for use outside of React components (e.g., ErrorBoundary)
 export { router };
 
+// Add global unhandled promise rejection handler
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("Unhandled promise rejection:", event.reason);
+  // Optionally show user-friendly error notification
+  // The error will be handled by ErrorBoundary or other error handling mechanisms
+});
+
 // Render the app
 const rootElement = document.getElementById("root");
 if (rootElement) {

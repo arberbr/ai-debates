@@ -29,9 +29,8 @@ function AboutComponent() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-base text-muted-foreground leading-relaxed">
-              The debate process is orchestrated through several stages, each building upon the
-              previous one to create a comprehensive discussion. Here's a detailed breakdown of how
-              everything works:
+              The debate process follows a structured format designed to create comprehensive and
+              engaging discussions. Here's what happens when you start a debate:
             </p>
           </CardContent>
         </Card>
@@ -45,16 +44,11 @@ function AboutComponent() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-base text-foreground leading-relaxed">
-              When you provide a debate topic, the system first generates a concise, descriptive
-              title (7-12 words) to make it easier to identify and reference your debate later. This
-              helps organize your debates and makes them easier to find in your debates list.
+              When you provide a debate topic, the system automatically generates a concise,
+              descriptive title (7-12 words) to make it easier to identify and reference your
+              debate later. This helps organize your debates and makes them easier to find in your
+              debates list.
             </p>
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-              <p className="text-sm text-blue-900 dark:text-blue-100">
-                <strong>Note:</strong> If title generation fails, the system automatically uses the
-                first 80 characters of your original topic as a fallback title.
-              </p>
-            </div>
           </CardContent>
         </Card>
 
@@ -67,17 +61,13 @@ function AboutComponent() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-base text-foreground leading-relaxed">
-              Both AI models (FOR and AGAINST) generate their opening statements simultaneously in
-              parallel. Each opening statement is designed to be approximately 5-10 minutes long
-              when read aloud (targeting 1000-2000 words at 200 words per minute).
+              Both AI models (FOR and AGAINST) generate their opening statements. Each opening
+              statement presents the main arguments and supporting evidence for their position.
             </p>
             <ul className="list-disc list-outside space-y-2 ml-6 text-base text-foreground">
-              <li>
-                Each model receives the debate topic and their assigned position (FOR or AGAINST)
-              </li>
+              <li>Each model receives the debate topic and their assigned position (FOR or AGAINST)</li>
               <li>Models present their main arguments and supporting evidence</li>
               <li>They anticipate potential counterarguments</li>
-              <li>Both statements are generated in parallel for efficiency</li>
             </ul>
             <p className="text-base text-muted-foreground leading-relaxed">
               These opening statements serve as the foundation for the entire debate, establishing
@@ -101,19 +91,16 @@ function AboutComponent() {
             <ul className="list-disc list-outside space-y-2 ml-6 text-base text-foreground">
               <li>
                 <strong>Round 1:</strong> Each side analyzes and rebuts the opponent's opening
-                statement. They dissect arguments, identify weaknesses, logical fallacies, or
-                unsupported claims, and present counterarguments.
+                statement. They dissect arguments, identify weaknesses, and present counterarguments.
               </li>
               <li>
-                <strong>Subsequent Rounds:</strong> Models focus on the opponent's arguments from
-                the previous round, addressing specific points, countering rebuttals, and
-                strengthening their position.
+                <strong>Subsequent Rounds:</strong> Models focus on the opponent's arguments from the
+                previous round, addressing specific points and strengthening their position.
               </li>
             </ul>
             <p className="text-base text-muted-foreground leading-relaxed">
               Throughout the rebuttal rounds, each model has access to the full debate history,
-              allowing them to build upon previous arguments and maintain consistency. The responses
-              are generated in parallel for efficiency.
+              allowing them to build upon previous arguments and maintain consistency.
             </p>
           </CardContent>
         </Card>
@@ -128,8 +115,7 @@ function AboutComponent() {
           <CardContent className="space-y-3">
             <p className="text-base text-foreground leading-relaxed">
               After all rebuttal rounds are complete, both models deliver their concluding
-              statements. Each conclusion is approximately 2-5 minutes long when read aloud
-              (targeting 400-1000 words).
+              statements.
             </p>
             <p className="text-base text-foreground leading-relaxed">
               In their conclusions, each model:
@@ -138,14 +124,10 @@ function AboutComponent() {
               <li>Summarizes their main arguments and why they still hold</li>
               <li>Addresses how they responded to the opponent's challenges</li>
               <li>Reinforces why their position is correct</li>
-              <li>
-                May acknowledge weaknesses or concede if their position was successfully challenged
-              </li>
             </ul>
             <p className="text-base text-muted-foreground leading-relaxed">
-              The conclusions are generated in parallel, and each model has access to the complete
-              debate transcript (opening statements, all rebuttal rounds) to provide a comprehensive
-              final statement.
+              The conclusions provide a comprehensive final statement based on the complete debate
+              transcript.
             </p>
           </CardContent>
         </Card>
@@ -159,13 +141,11 @@ function AboutComponent() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-base text-foreground leading-relaxed">
-              Three independent AI judges evaluate the entire debate using advanced models from
-              leading AI providers. Each judge provides an independent assessment to ensure fairness
-              and comprehensive evaluation.
+              Three independent AI judges evaluate the entire debate. Each judge provides an
+              independent assessment to ensure fairness and comprehensive evaluation.
             </p>
             <p className="text-base text-foreground leading-relaxed">
-              Each judge receives the complete debate transcript (opening statements, all rebuttal
-              rounds, and conclusions) and evaluates based on:
+              Each judge receives the complete debate transcript and evaluates based on:
             </p>
             <ul className="list-disc list-outside space-y-2 ml-6 text-base text-foreground">
               <li>
@@ -196,12 +176,6 @@ function AboutComponent() {
               <li>A declared winner (FOR, AGAINST, or TIE)</li>
               <li>Detailed reasoning explaining their decision</li>
             </ul>
-            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
-              <p className="text-sm text-green-900 dark:text-green-100">
-                <strong>Resilience:</strong> If one judge fails to evaluate, the system continues
-                with the remaining judges to ensure a fair evaluation process.
-              </p>
-            </div>
           </CardContent>
         </Card>
 
@@ -209,7 +183,7 @@ function AboutComponent() {
         <Card className="w-full">
           <CardHeader>
             <CardTitle className="text-xl font-semibold text-foreground">
-              Stage 6: Final Result Calculation
+              Stage 6: Final Result
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -239,23 +213,20 @@ function AboutComponent() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Real-Time Updates</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">API Key Setup</h3>
               <p className="text-base text-muted-foreground leading-relaxed">
-                As each stage of the debate completes, you'll see status updates and content appear
-                immediately, providing a live view of the debate as it unfolds. Watch the debate
-                progress in real-time from start to finish.
+                To use the platform, you'll need an OpenRouter API key. You can get one at{" "}
+                <a
+                  href="https://openrouter.ai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline hover:text-primary/80"
+                >
+                  openrouter.ai
+                </a>
+                . Your API key is stored securely in your browser and is only used to access the AI
+                models through OpenRouter.
               </p>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Data Storage</h3>
-              <p className="text-base text-muted-foreground leading-relaxed">
-                All debates are automatically saved to your browser when complete. This means:
-              </p>
-              <ul className="list-disc list-outside space-y-2 ml-6 text-base text-muted-foreground mt-2">
-                <li>Your API key is stored securely in your browser</li>
-                <li>Completed debates are saved for later review</li>
-                <li>All data stays in your browser - nothing is stored on external servers</li>
-              </ul>
             </div>
             <div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Available Models</h3>
@@ -278,30 +249,32 @@ function AboutComponent() {
               </p>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">API Key Setup</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Real-Time Updates</h3>
               <p className="text-base text-muted-foreground leading-relaxed">
-                To use the platform, you'll need an OpenRouter API key. You can get one for free at{" "}
-                <a
-                  href="https://openrouter.ai"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary underline hover:text-primary/80"
-                >
-                  openrouter.ai
-                </a>
-                . Your API key is stored securely in your browser and is only used to access the AI
-                models through OpenRouter.
+                As each stage of the debate completes, you'll see status updates and content appear
+                immediately, providing a live view of the debate as it unfolds. Watch the debate
+                progress in real-time from start to finish.
               </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Data Storage</h3>
+              <p className="text-base text-muted-foreground leading-relaxed">
+                All debates are automatically saved to your browser when complete. This means:
+              </p>
+              <ul className="list-disc list-outside space-y-2 ml-6 text-base text-muted-foreground mt-2">
+                <li>Your API key is stored securely in your browser</li>
+                <li>Completed debates are saved for later review</li>
+                <li>All data stays in your browser - nothing is stored on external servers</li>
+                <li>Debates sync across browser tabs automatically</li>
+              </ul>
             </div>
           </CardContent>
         </Card>
 
-        {/* Additional Features */}
+        {/* Features */}
         <Card className="w-full">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-foreground">
-              Additional Features
-            </CardTitle>
+            <CardTitle className="text-2xl font-bold text-foreground">Features</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -339,10 +312,6 @@ function AboutComponent() {
                 <li>
                   <strong>Overall Statistics:</strong> Total debates, total cost, total tokens used,
                   and average rounds per debate
-                </li>
-                <li>
-                  <strong>Most Debated Topics:</strong> See which topics you've debated most
-                  frequently
                 </li>
                 <li>
                   <strong>Sortable Rankings:</strong> Sort models by win rate, total wins, average
@@ -390,20 +359,19 @@ function AboutComponent() {
               </h3>
               <p className="text-base text-muted-foreground leading-relaxed">
                 The application automatically calculates estimated reading time for each side of the
-                debate. Reading times are based on:
+                debate. Reading times are based on a standard reading speed and include all content
+                from opening statements, rebuttal rounds, and conclusions.
               </p>
-              <ul className="list-disc list-outside space-y-2 ml-6 text-base text-muted-foreground mt-2">
-                <li>200 words per minute reading speed</li>
-                <li>
-                  Full content including opening statements, all rebuttal rounds, and conclusions
-                </li>
-                <li>
-                  Plain text extraction from markdown (excluding code blocks, formatting, etc.)
-                </li>
-              </ul>
               <p className="text-base text-muted-foreground leading-relaxed mt-2">
                 These estimates help you understand the length and depth of each debate before you
                 start reading.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Markdown Support</h3>
+              <p className="text-base text-muted-foreground leading-relaxed">
+                All debate content is rendered with full markdown support, making arguments easier to
+                read with proper formatting, lists, code blocks, and other markdown features.
               </p>
             </div>
           </CardContent>
@@ -427,18 +395,24 @@ function AboutComponent() {
               <li>
                 <strong>Model Selection:</strong> Try different model combinations to see how
                 different AI systems approach arguments. Some models excel at logical reasoning,
-                others at creativity.
+                others at creativity. You can even have the same model debate itself to see how it
+                handles both sides of an argument.
               </li>
               <li>
                 <strong>Judge Criteria:</strong> Use the optional judge system prompt to emphasize
                 criteria important to you, such as factual accuracy, conciseness, or ethical
                 considerations.
               </li>
+              <li>
+                <strong>Rate Limiting:</strong> The app includes a 5-second rate limit between
+                submissions to prevent accidental duplicate debates. If you see a rate limit message,
+                simply wait a few seconds before trying again.
+              </li>
             </ul>
           </CardContent>
         </Card>
 
-        {/* Author & Credits */}
+        {/* Credits */}
         <Card className="w-full">
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-foreground">Credits</CardTitle>

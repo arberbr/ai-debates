@@ -9,7 +9,7 @@ export const FinalResultCard = ({ finalResult }: FinalResultCardProps) => {
   const winnerColor = {
     yes: "bg-blue-500/20 text-blue-700 dark:text-blue-400",
     no: "bg-red-500/20 text-red-700 dark:text-red-400",
-    tie: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400",
+    tie: "bg-yellow-500/20 text-yellow-900 dark:text-yellow-400",
   }[finalResult.winner || "tie"];
 
   return (

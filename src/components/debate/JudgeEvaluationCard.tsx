@@ -9,8 +9,8 @@ interface JudgeEvaluationCardProps {
 export const JudgeEvaluationCard = ({ evaluation }: JudgeEvaluationCardProps) => {
   const winnerColor = {
     yes: "bg-blue-500/25 text-blue-700 dark:text-blue-300 border border-blue-500/30",
-    no: "bg-red-500/25 text-red-700 dark:text-red-300 border border-red-500/30",
-    tie: "bg-yellow-500/25 text-yellow-700 dark:text-yellow-300 border border-yellow-500/30",
+    no: "bg-red-500/25 text-red-900 dark:text-red-300 border border-red-500/30",
+    tie: "bg-yellow-500/25 text-yellow-900 dark:text-yellow-300 border border-yellow-500/30",
   }[evaluation.winner || "tie"];
 
   return (

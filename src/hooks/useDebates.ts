@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { STORAGE_KEYS } from "@/lib/constants";
 import { savedDebateSchema } from "@/lib/schemas";
 import type { SavedDebate } from "@/lib/types";
+import { debounce } from "@/lib/utils";
 import { useLocalStorage } from "./useLocalStorage";
 
 /**
@@ -175,13 +176,27 @@ export function useDebates() {
     [setItem, loadDebates]
   );
 
+  // Debounce loadDebates to avoid excessive re-renders on rapid storage changes
+  const debouncedLoadDebatesRef = useRef(
+    debounce(() => {
+      loadDebates();
+    }, 300)
+  );
+
+  // Update debounced function when loadDebates changes
+  useEffect(() => {
+    debouncedLoadDebatesRef.current = debounce(() => {
+      loadDebates();
+    }, 300);
+  }, [loadDebates]);
+
   useEffect(() => {
     loadDebates();
 
     const handleStorageChange = (e: StorageEvent) => {
       // Only reload if the saved_debates key changed
       if (e.key === STORAGE_KEYS.SAVED_DEBATES) {
-        loadDebates();
+        debouncedLoadDebatesRef.current();
       }
     };
 
@@ -191,7 +206,7 @@ export function useDebates() {
     // Also create a custom event listener for same-tab changes
     // This is needed because storage events only fire for changes from other tabs/windows
     const handleCustomStorageChange = () => {
-      loadDebates();
+      debouncedLoadDebatesRef.current();
     };
 
     // Listen for custom storage events (can be dispatched when saving debates in same tab)

@@ -18,6 +18,8 @@ A modern web application that facilitates structured debates between AI models o
 - 🔄 **Cross-Tab Sync**: Debates saved in one tab automatically appear in other tabs
 - 🛡️ **Error Handling**: Comprehensive error boundaries and retry logic for resilient operation
 - 🎯 **Custom Judge Criteria**: Optional judge system prompts to customize evaluation criteria
+- ⏸️ **Rate Limiting**: Built-in rate limiting (5 seconds) to prevent accidental duplicate submissions
+- 🗑️ **Debate Management**: Delete debates from the debates list with confirmation dialogs
 
 ## Tech Stack
 
@@ -79,9 +81,9 @@ The frontend will be available at `http://localhost:5173` (or the next available
 ### Viewing Debates
 
 - **Active Debates**: Watch debates progress in real-time with live status updates
-- **Debates List**: Access the "Debates" page from the navigation to view all saved debates with summaries, models used, reading times, and usage statistics
+- **Debates List**: Access the "Debates" page from the navigation to view all saved debates with summaries, models used, reading times, and usage statistics. Delete debates with confirmation dialogs.
 - **Debate Details**: Click on any debate to view full transcripts, judge evaluations, scores, usage statistics, and final results
-- **Leaderboard**: View the "Leaderboard" page to see model performance statistics, overall usage metrics, and most debated topics
+- **Leaderboard**: View the "Leaderboard" page to see model performance statistics, overall usage metrics, and most debated topics. Sort by win rate, wins, average score, or total debates.
 
 ### Debate Process
 
@@ -99,18 +101,26 @@ ai-debates/
 ├── src/
 │   ├── components/
 │   │   ├── debate/              # Debate-specific components
+│   │   │   ├── DebateCard.tsx           # Debate card for debates list
 │   │   │   ├── DebateContent.tsx        # Main debate content container
 │   │   │   ├── DebateMessageCard.tsx    # Individual message cards (FOR/AGAINST)
 │   │   │   ├── FinalResultCard.tsx       # Final result display
 │   │   │   ├── JudgeEvaluationCard.tsx   # Individual judge evaluations
 │   │   │   ├── MarkdownContent.tsx       # Markdown renderer component
-│   │   │   └── UsageStatsCard.tsx       # Token usage and cost display
+│   │   │   └── UsageStatsCard.tsx        # Token usage and cost display
+│   │   ├── form/                # Form-specific components
+│   │   │   ├── ApiKeyCard.tsx           # API key input card
+│   │   │   ├── DebateTopicField.tsx     # Debate topic textarea field
+│   │   │   ├── FormErrorMessage.tsx     # Form error message display
+│   │   │   └── ModelSelect.tsx          # Model selection dropdown
 │   │   ├── layout/
 │   │   │   └── Navbar.tsx               # Navigation bar component
 │   │   ├── ui/                  # shadcn/ui components
 │   │   │   ├── button.tsx
 │   │   │   ├── card.tsx
+│   │   │   ├── dialog.tsx
 │   │   │   ├── empty-state.tsx
+│   │   │   ├── error-alert.tsx          # Error alert component
 │   │   │   ├── input.tsx
 │   │   │   ├── label.tsx
 │   │   │   ├── select.tsx
@@ -122,10 +132,13 @@ ai-debates/
 │   ├── hooks/                   # Custom React hooks
 │   │   ├── useApiKey.ts         # API key management hook
 │   │   ├── useDebateConnection.ts  # SSE connection management hook
+│   │   ├── useDebateFormSubmission.ts  # Form submission with validation and rate limiting
+│   │   ├── useDebateSave.ts     # Debate saving to localStorage hook
 │   │   ├── useDebateState.ts    # Debate state management with reducer
 │   │   ├── useDebateStream.ts   # Main SSE streaming hook (composes other hooks)
 │   │   ├── useDebates.ts        # Debates CRUD operations hook
 │   │   ├── useLocalStorage.ts   # Generic localStorage utility hook
+│   │   ├── useRateLimit.ts      # Rate limiting hook for form submissions
 │   │   └── useTitleGeneration.ts  # Debate title generation hook
 │   ├── routes/                  # TanStack Router file-based routes
 │   │   ├── __root.tsx           # Root layout with navigation and error boundary
@@ -140,9 +153,13 @@ ai-debates/
 │   │   ├── constants.ts         # App constants (models, storage keys, config)
 │   │   ├── debate-utils.ts      # Debate-specific utilities (string cleaning)
 │   │   ├── error-handler.ts     # Error handling utilities
+│   │   ├── error-utils.ts       # Error extraction and utility functions
+│   │   ├── form-types.ts        # Form type definitions
 │   │   ├── schemas.ts           # Zod validation schemas
+│   │   ├── signal-utils.ts      # AbortSignal utilities for request cancellation
 │   │   ├── types.ts             # TypeScript type definitions
-│   │   └── utils.ts             # Utility functions (reading time, date formatting, markdown stripping)
+│   │   ├── utils.ts             # Utility functions (reading time, date formatting, markdown stripping)
+│   │   └── validation.ts        # Form validation and parsing utilities
 │   ├── main.tsx                 # Application entry point
 │   └── index.css                # Global styles and CSS variables
 ├── backend/                     # NestJS backend (see backend/README.md)
@@ -248,6 +265,7 @@ Routes are automatically generated and type-safe. Run `pnpm dev` to regenerate r
 - **Route Types**: TanStack Router provides type-safe navigation
 - **Type Definitions**: Shared types in `src/lib/types.ts`
 - **Type Inference**: Leverage TypeScript inference for props and state
+- **Path Aliases**: Use `@/` prefix to import from `src/` directory (e.g., `@/components/ui/button`)
 
 ### Code Quality
 
@@ -272,9 +290,10 @@ The application uses Server-Sent Events (SSE) to stream debate progress in real-
 The application uses a hybrid approach:
 
 1. **Component State**: React hooks for UI state (loading, errors, form values)
-2. **Custom Hooks**: Encapsulate business logic (`useApiKey`, `useDebates`, `useDebateStream`, `useDebateState`, `useTitleGeneration`)
+2. **Custom Hooks**: Encapsulate business logic (`useApiKey`, `useDebates`, `useDebateStream`, `useDebateState`, `useTitleGeneration`, `useDebateFormSubmission`, `useDebateSave`, `useRateLimit`)
 3. **localStorage**: Persistent storage with automatic synchronization
 4. **Event System**: Custom events for same-tab updates, Storage API for cross-tab sync
+5. **Rate Limiting**: Client-side rate limiting (5 seconds) prevents duplicate submissions
 
 ### Reading Time Calculation
 
@@ -287,17 +306,21 @@ Reading times are calculated using:
 
 ### Error Handling
 
-- **Error Boundary**: Catches React errors and displays fallback UI
+- **Error Boundary**: Catches React errors and displays fallback UI (`ErrorBoundary`, `FeatureErrorBoundary`)
+- **Error Components**: Reusable error alert components (`ErrorAlert`, `ErrorAlertWithActions`)
 - **API Errors**: Handled with user-friendly messages and automatic API key clearing on auth errors
-- **Network Errors**: Retry logic with exponential backoff (3 attempts)
-- **Validation**: Client-side validation for forms with helpful error messages
+- **Network Errors**: Retry logic with exponential backoff (3 attempts, configurable in constants)
+- **Validation**: Client-side validation for forms with helpful error messages (Zod schemas)
+- **Storage Errors**: Handles quota exceeded errors with user-friendly messages
 
 ### Performance Optimizations
 
 - **Code Splitting**: Automatic route-based code splitting via TanStack Router
 - **Lazy Loading**: Routes loaded on demand
-- **Memoization**: Custom hooks use `useCallback` to prevent unnecessary re-renders
+- **Memoization**: Custom hooks use `useCallback` and `useMemo` to prevent unnecessary re-renders
+- **Component Memoization**: Components like `DebateCard` are memoized to prevent unnecessary re-renders
 - **Efficient Updates**: Only affected components re-render on state changes
+- **Manual Chunks**: Vendor, router, and UI libraries are split into separate chunks for better caching
 
 ## Troubleshooting
 
@@ -314,12 +337,15 @@ Reading times are calculated using:
 - Check browser console for error messages
 - Ensure topic is not longer than 300 characters
 - If you see connection errors, verify the API server is accessible
+- If you see a rate limit message, wait 5 seconds before trying again
 
 ### Storage Issues
 
 - If debates aren't saving, check browser console for localStorage errors
 - Some browsers restrict localStorage in private/incognito mode
 - Clear localStorage if you encounter corrupted data (DevTools → Application → Local Storage → Clear)
+- If you see "Storage limit reached" error, delete some old debates to free up space
+- The app has a 5MB storage quota limit (configurable in constants)
 
 ### Performance
 

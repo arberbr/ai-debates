@@ -9,6 +9,7 @@ import {
   NotFoundException,
   Res,
   Logger,
+  Headers,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { DebateService } from './debate.service';
@@ -27,16 +28,29 @@ export class DebateController {
 
   @Post('start')
   @HttpCode(HttpStatus.OK)
-  async startDebate(@Body() dto: StartDebateDto, @Res() res: Response) {
+  async startDebate(
+    @Body() dto: StartDebateDto,
+    @Headers('authorization') authHeader: string | undefined,
+    @Res() res: Response,
+  ) {
     // Generate debate ID
     const debateId = crypto.randomUUID();
+
+    // Extract API key from Authorization header (Bearer <token>)
+    let normalizedApiKey: string | null = null;
+    if (authHeader) {
+      const match = authHeader.match(/^Bearer\s+(.+)$/i);
+      if (match && match[1]) {
+        normalizedApiKey = match[1].trim();
+      }
+    }
 
     console.log('[DebateController] Received request:', {
       topic: dto.topic?.substring(0, 50) + '...',
       yesModel: dto.yesModel,
       noModel: dto.noModel,
       rounds: dto.rounds,
-      hasApiKey: !!dto.api_key,
+      hasApiKey: !!normalizedApiKey,
     });
 
     // Validate topic length (max 300 characters)
@@ -70,7 +84,7 @@ export class DebateController {
 
     // Process and stream events
     try {
-      await this.processDebateWithStreaming(dto, debateId, res);
+      await this.processDebateWithStreaming(dto, debateId, res, normalizedApiKey);
     } catch (error: any) {
       this.sendSSEEvent(res, {
         type: 'error',
@@ -95,15 +109,24 @@ export class DebateController {
 
   @Post('generate-title')
   @HttpCode(HttpStatus.OK)
-  async generateTitle(@Body() dto: { topic: string; api_key?: string }) {
-    const { topic, api_key } = dto;
+  async generateTitle(
+    @Body() dto: { topic: string },
+    @Headers('authorization') authHeader?: string,
+  ) {
+    const { topic } = dto;
 
     if (!topic || !topic.trim()) {
       throw new Error('Topic is required');
     }
 
-    // Normalize api_key
-    const normalizedApiKey = api_key && api_key.trim() ? api_key.trim() : null;
+    // Extract API key from Authorization header (Bearer <token>)
+    let normalizedApiKey: string | null = null;
+    if (authHeader) {
+      const match = authHeader.match(/^Bearer\s+(.+)$/i);
+      if (match && match[1]) {
+        normalizedApiKey = match[1].trim();
+      }
+    }
 
     if (!normalizedApiKey) {
       throw new Error('OpenRouter API key is required');
@@ -142,11 +165,9 @@ export class DebateController {
     dto: StartDebateDto,
     debateId: string,
     res: Response,
+    normalizedApiKey: string | null,
   ): Promise<void> {
-    const { topic, yesModel, noModel, rounds, judgePrompt, title, api_key } = dto;
-
-    // Normalize api_key
-    const normalizedApiKey = api_key && api_key.trim() ? api_key.trim() : null;
+    const { topic, yesModel, noModel, rounds, judgePrompt, title } = dto;
 
     if (!normalizedApiKey) {
       throw new Error('OpenRouter API key is required');

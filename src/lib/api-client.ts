@@ -1,4 +1,5 @@
 import { DEBATE_CONFIG, getApiBaseUrl, TIMING } from "./constants";
+import { combineAbortSignals } from "./signal-utils";
 
 /**
  * API response types
@@ -14,7 +15,7 @@ export interface DebateStartConfig {
   rounds: number;
   judgePrompt: string;
   title: string;
-  api_key: string;
+  apiKey: string;
 }
 
 /**
@@ -66,16 +67,7 @@ export class ApiClient {
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
         // Merge abort signal with existing signal if present
-        const signal =
-          options.signal && controller.signal
-            ? (() => {
-                const combinedController = new AbortController();
-                // Forward abort from either signal
-                options.signal.addEventListener("abort", () => combinedController.abort());
-                controller.signal.addEventListener("abort", () => combinedController.abort());
-                return combinedController.signal;
-              })()
-            : controller.signal;
+        const signal = combineAbortSignals(options.signal, controller.signal);
 
         try {
           const response = await fetch(url, { ...options, signal });
@@ -99,9 +91,7 @@ export class ApiClient {
 
           // Check if error is due to timeout
           if (fetchError instanceof Error && fetchError.name === "AbortError") {
-            throw new Error(
-              `Request timeout after ${timeoutMs}ms. The server took too long to respond.`
-            );
+            throw new Error("The request took too long to complete. Please try again.");
           }
 
           throw fetchError;
@@ -159,10 +149,10 @@ export class ApiClient {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           topic,
-          api_key: apiKey,
         }),
         signal,
       });
@@ -200,12 +190,14 @@ export class ApiClient {
    * @throws ApiError if request fails
    */
   async startDebateStream(config: DebateStartConfig, signal?: AbortSignal): Promise<Response> {
+    const { apiKey, ...configWithoutApiKey } = config;
     const response = await this.request("/api/debate/start", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify(config),
+      body: JSON.stringify(configWithoutApiKey),
       signal,
     });
 
@@ -252,6 +244,6 @@ export function createDebateStartConfig(params: {
     rounds: parseInt(params.rounds || "3", 10),
     judgePrompt: params.judgePrompt || "",
     title: params.title,
-    api_key: params.apiKey,
+    apiKey: params.apiKey,
   };
 }

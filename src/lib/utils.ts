@@ -15,6 +15,33 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Creates a debounced version of a function that delays execution until after
+ * the specified time has elapsed since the last invocation.
+ * @param fn - The function to debounce
+ * @param delayMs - Delay in milliseconds
+ * @returns Debounced function
+ * @example
+ * const debouncedSearch = debounce((query) => search(query), 300);
+ * debouncedSearch("test"); // Will execute after 300ms of no calls
+ */
+export function debounce<T extends (...args: unknown[]) => void>(
+  fn: T,
+  delayMs: number
+): (...args: Parameters<T>) => void {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  return (...args: Parameters<T>) => {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+    timeoutId = setTimeout(() => {
+      fn(...args);
+      timeoutId = null;
+    }, delayMs);
+  };
+}
+
+/**
  * Strips markdown syntax from text content to get plain text
  * @param content - Text content with markdown
  * @returns Plain text with markdown syntax removed

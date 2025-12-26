@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { ApiError, apiClient, createDebateStartConfig } from "@/lib/api-client";
-import { SSE_BUFFER, STORAGE_KEYS } from "@/lib/constants";
+import { SSE_BUFFER, STORAGE_KEYS, TIMING } from "@/lib/constants";
 import { isAuthError as checkAuthError } from "@/lib/error-utils";
 import type {
   Conclusions,
@@ -126,6 +126,20 @@ export function useDebateConnection({
 }: UseDebateConnectionOptions) {
   const abortControllerRef = useRef<AbortController | null>(null);
   const activeDebateIdRef = useRef<string | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastConfigRef = useRef<{ config: DebateConfig; title: string; apiKey: string } | null>(
+    null
+  );
+  const startConnectionInternalRef = useRef<
+    | ((
+        config: DebateConfig,
+        title: string,
+        apiKey: string,
+        isReconnect?: boolean
+      ) => Promise<void>)
+    | null
+  >(null);
   const { setItem, getItem } = useLocalStorage();
 
   // Keep callback refs updated
@@ -140,10 +154,50 @@ export function useDebateConnection({
   }, [onEvent, onError, clearApiKey]);
 
   /**
-   * Start the debate stream
+   * Attempts to reconnect to the SSE stream after a transient error
    */
-  const startConnection = useCallback(
+  const attemptReconnect = useCallback(
     async (config: DebateConfig, title: string, apiKey: string) => {
+      if (reconnectAttemptsRef.current >= TIMING.SSE_MAX_RECONNECT_ATTEMPTS) {
+        const errorMessage =
+          "Failed to reconnect after multiple attempts. Please try starting a new debate.";
+        console.error(errorMessage);
+        onErrorRef.current(errorMessage);
+        onEventRef.current({ stage: "error", message: errorMessage });
+        reconnectAttemptsRef.current = 0;
+        return;
+      }
+
+      reconnectAttemptsRef.current++;
+      const delay = TIMING.SSE_RECONNECT_BASE_DELAY * reconnectAttemptsRef.current;
+
+      onEventRef.current({
+        stage: "status_update",
+        message: `Reconnecting... (attempt ${reconnectAttemptsRef.current}/${TIMING.SSE_MAX_RECONNECT_ATTEMPTS})`,
+      });
+
+      reconnectTimeoutRef.current = setTimeout(async () => {
+        try {
+          const startFn = startConnectionInternalRef.current;
+          if (startFn) {
+            await startFn(config, title, apiKey, true);
+            // Reset attempts on successful reconnection
+            reconnectAttemptsRef.current = 0;
+          }
+        } catch (error) {
+          // Will trigger another reconnect attempt if it's a transient error
+          console.error("Reconnection attempt failed:", error);
+        }
+      }, delay);
+    },
+    []
+  );
+
+  /**
+   * Internal function to start the debate stream connection
+   */
+  const startConnectionInternal = useCallback(
+    async (config: DebateConfig, title: string, apiKey: string, isReconnect = false) => {
       // Setup abort controller
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -151,6 +205,12 @@ export function useDebateConnection({
       }
       abortControllerRef.current = new AbortController();
       activeDebateIdRef.current = debateId;
+
+      // Store config for potential reconnection
+      if (!isReconnect) {
+        lastConfigRef.current = { config, title, apiKey };
+        reconnectAttemptsRef.current = 0;
+      }
 
       try {
         // Prepare config
@@ -203,8 +263,10 @@ export function useDebateConnection({
 
           // Prevent buffer from growing unbounded (memory leak prevention)
           if (buffer.length > SSE_BUFFER.MAX_SIZE) {
-            const errorMessage = `SSE buffer exceeded maximum size of ${SSE_BUFFER.MAX_SIZE} bytes. The stream may be malformed.`;
-            console.error(errorMessage);
+            const errorMessage = "The debate stream encountered an error. Please try again.";
+            console.error(
+              `SSE buffer exceeded maximum size of ${SSE_BUFFER.MAX_SIZE} bytes. The stream may be malformed.`
+            );
             onErrorRef.current(errorMessage);
             onEventRef.current({ stage: "error", message: errorMessage });
             break;
@@ -229,11 +291,35 @@ export function useDebateConnection({
         // Handle authentication errors - clear API key if auth error detected
         if (isAuthError(err)) {
           clearApiKeyRef.current?.();
+          reconnectAttemptsRef.current = 0;
+          onErrorRef.current(errorMessage);
+          onEventRef.current({ stage: "error", message: errorMessage });
+          return;
         }
 
-        console.error("Debate connection error:", err);
-        onErrorRef.current(errorMessage);
-        onEventRef.current({ stage: "error", message: errorMessage });
+        // Check if error is transient (network errors, 5xx errors)
+        const isTransientError =
+          err instanceof Error &&
+          (err.name === "TypeError" || // Network errors
+            err.message.includes("fetch") ||
+            err.message.includes("network") ||
+            (err instanceof ApiError && err.status >= 500));
+
+        if (isTransientError && lastConfigRef.current && !isReconnect) {
+          // Attempt reconnection for transient errors
+          console.warn("Transient error detected, attempting reconnection:", err);
+          await attemptReconnect(
+            lastConfigRef.current.config,
+            lastConfigRef.current.title,
+            lastConfigRef.current.apiKey
+          );
+        } else {
+          // Non-transient error or reconnection failed
+          console.error("Debate connection error:", err);
+          reconnectAttemptsRef.current = 0;
+          onErrorRef.current(errorMessage);
+          onEventRef.current({ stage: "error", message: errorMessage });
+        }
       } finally {
         // Cleanup if this was the active connection
         if (activeDebateIdRef.current === debateId) {
@@ -241,7 +327,22 @@ export function useDebateConnection({
         }
       }
     },
-    [debateId, getItem, setItem]
+    [debateId, getItem, setItem, attemptReconnect]
+  );
+
+  // Keep ref updated
+  useEffect(() => {
+    startConnectionInternalRef.current = startConnectionInternal;
+  }, [startConnectionInternal]);
+
+  /**
+   * Start the debate stream
+   */
+  const startConnection = useCallback(
+    async (config: DebateConfig, title: string, apiKey: string) => {
+      await startConnectionInternal(config, title, apiKey, false);
+    },
+    [startConnectionInternal]
   );
 
   /**
@@ -252,7 +353,13 @@ export function useDebateConnection({
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
     activeDebateIdRef.current = null;
+    reconnectAttemptsRef.current = 0;
+    lastConfigRef.current = null;
   }, []);
 
   // Cleanup on unmount

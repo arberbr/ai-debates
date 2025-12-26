@@ -36,6 +36,14 @@ export const STORAGE_QUOTA = {
 } as const;
 
 /**
+ * Storage encoding constants
+ */
+export const STORAGE_ENCODING = {
+  /** UTF-16 encoding uses 2 bytes per character */
+  BYTES_PER_CHAR: 2,
+} as const;
+
+/**
  * Animation and timing constants
  */
 export const TIMING = {
@@ -49,6 +57,10 @@ export const TIMING = {
   MAX_RETRY_ATTEMPTS: 3,
   /** Redirect delay after API key error in milliseconds */
   REDIRECT_DELAY: 3000,
+  /** SSE reconnection delay base in milliseconds */
+  SSE_RECONNECT_BASE_DELAY: 2000,
+  /** Maximum SSE reconnection attempts */
+  SSE_MAX_RECONNECT_ATTEMPTS: 3,
 } as const;
 
 /**

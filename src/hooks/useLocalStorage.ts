@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { STORAGE_QUOTA } from "@/lib/constants";
+import { STORAGE_ENCODING, STORAGE_QUOTA } from "@/lib/constants";
 import { formatBytes } from "@/lib/utils";
 
 /**
@@ -195,8 +195,8 @@ export function useLocalStorage() {
         const key = localStorage.key(i);
         if (key) {
           const value = localStorage.getItem(key);
-          // Calculate size: key + value in UTF-16 (2 bytes per character)
-          usedBytes += (key.length + (value?.length || 0)) * 2;
+          // Calculate size: key + value in UTF-16 encoding
+          usedBytes += (key.length + (value?.length || 0)) * STORAGE_ENCODING.BYTES_PER_CHAR;
         }
       }
 
@@ -252,7 +252,7 @@ export function useLocalStorage() {
     } => {
       const stats = getStorageStats();
       const serialized = typeof value === "string" ? value : JSON.stringify(value);
-      const dataSize = serialized.length * 2; // UTF-16 encoding
+      const dataSize = serialized.length * STORAGE_ENCODING.BYTES_PER_CHAR;
       const newTotal = stats.usedBytes + dataSize;
       const newUsagePercent = Math.round((newTotal / stats.estimatedQuotaBytes) * 100);
 
