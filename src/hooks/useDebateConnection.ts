@@ -69,38 +69,33 @@ interface ParseSSEBufferResult {
  */
 function parseSSEBuffer(buffer: string): ParseSSEBufferResult {
   const events: SSEEventData[] = [];
-  const lines = buffer.split("\n");
+  const DATA_PREFIX = "data: ";
 
-  // Check if last line is a complete data line (doesn't end with newline in split)
-  let remainingBuffer = "";
-  if (lines.length > 0) {
-    const lastLine = lines[lines.length - 1];
-    if (lastLine.startsWith("data: ")) {
-      // Try to parse it - if it's complete, process it
-      try {
-        const parsed = JSON.parse(lastLine.slice(6)) as SSEEventData;
-        events.push(parsed);
-        lines.pop(); // Remove from buffer since it's complete
-      } catch {
-        // Not complete JSON yet, keep in buffer
-        remainingBuffer = lines.pop() || "";
-      }
-    } else {
-      remainingBuffer = lines.pop() || "";
-    }
+  if (!buffer) {
+    return { events, remainingBuffer: "" };
   }
 
-  // Process all but the last line
-  for (const line of lines) {
-    if (line.startsWith("data: ")) {
+  const lines = buffer.split("\n");
+  const lastLine = lines[lines.length - 1];
+  const isLastLineIncomplete = lastLine.startsWith(DATA_PREFIX) && !lastLine.endsWith("\n");
+
+  // Process complete lines (exclude potentially incomplete last line)
+  const linesToProcess = isLastLineIncomplete ? lines.slice(0, -1) : lines;
+
+  for (const line of linesToProcess) {
+    if (line.startsWith(DATA_PREFIX)) {
       try {
-        const parsed = JSON.parse(line.slice(6)) as SSEEventData;
+        const jsonString = line.slice(DATA_PREFIX.length);
+        const parsed = JSON.parse(jsonString) as SSEEventData;
         events.push(parsed);
       } catch (e) {
         console.error("Error parsing SSE data:", e, "Line:", line);
       }
     }
   }
+
+  // Handle potentially incomplete last line
+  const remainingBuffer = isLastLineIncomplete ? lastLine : "";
 
   return { events, remainingBuffer };
 }

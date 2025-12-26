@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useReducer } from "react";
+import { useMemo, useReducer } from "react";
 import type {
   Conclusions,
   DebateRound,
@@ -103,95 +103,33 @@ function debateReducer(state: DebateState, action: DebateAction): DebateState {
 export function useDebateState() {
   const [state, dispatch] = useReducer(debateReducer, initialDebateState);
 
-  const setStatus = useCallback((status: string) => {
-    dispatch({ type: "SET_STATUS", payload: status });
-  }, []);
-
-  const setDisplayTopic = useCallback((topic: string) => {
-    dispatch({ type: "SET_TOPIC", payload: topic });
-  }, []);
-
-  const setModels = useCallback((yesModel: string, noModel: string) => {
-    dispatch({ type: "SET_MODELS", payload: { yesModel, noModel } });
-  }, []);
-
-  const setOpeningStatements = useCallback((statements: OpeningStatements) => {
-    dispatch({ type: "SET_OPENING_STATEMENTS", payload: statements });
-  }, []);
-
-  const addRound = useCallback((round: DebateRound) => {
-    dispatch({ type: "ADD_ROUND", payload: round });
-  }, []);
-
-  const setRounds = useCallback((rounds: DebateRound[]) => {
-    dispatch({ type: "SET_ROUNDS", payload: rounds });
-  }, []);
-
-  const setConclusions = useCallback((conclusions: Conclusions) => {
-    dispatch({ type: "SET_CONCLUSIONS", payload: conclusions });
-  }, []);
-
-  const addJudgeEvaluation = useCallback((evaluation: JudgeEvaluation) => {
-    dispatch({ type: "ADD_JUDGE_EVALUATION", payload: evaluation });
-  }, []);
-
-  const setJudgeEvaluations = useCallback((evaluations: JudgeEvaluation[]) => {
-    dispatch({ type: "SET_JUDGE_EVALUATIONS", payload: evaluations });
-  }, []);
-
-  const setFinalResult = useCallback((result: FinalResult) => {
-    dispatch({ type: "SET_FINAL_RESULT", payload: result });
-  }, []);
-
-  const setUsage = useCallback((usage: UsageData) => {
-    dispatch({ type: "SET_USAGE", payload: usage });
-  }, []);
-
-  const setError = useCallback((error: string) => {
-    dispatch({ type: "SET_ERROR", payload: error });
-  }, []);
-
-  const completeDebate = useCallback(() => {
-    dispatch({ type: "COMPLETE_DEBATE" });
-  }, []);
-
-  const resetState = useCallback((initialOverride?: Partial<DebateState>) => {
-    dispatch({ type: "RESET", payload: initialOverride });
-  }, []);
-
+  // Use stable dispatch reference - actions don't need individual useCallback
+  // since dispatch is stable from useReducer
   const actions = useMemo(
     () => ({
-      setStatus,
-      setDisplayTopic,
-      setModels,
-      setOpeningStatements,
-      addRound,
-      setRounds,
-      setConclusions,
-      addJudgeEvaluation,
-      setJudgeEvaluations,
-      setFinalResult,
-      setUsage,
-      setError,
-      completeDebate,
-      resetState,
+      setStatus: (status: string) => dispatch({ type: "SET_STATUS", payload: status }),
+      setDisplayTopic: (topic: string) => dispatch({ type: "SET_TOPIC", payload: topic }),
+      setModels: (yesModel: string, noModel: string) =>
+        dispatch({ type: "SET_MODELS", payload: { yesModel, noModel } }),
+      setOpeningStatements: (statements: OpeningStatements) =>
+        dispatch({ type: "SET_OPENING_STATEMENTS", payload: statements }),
+      addRound: (round: DebateRound) => dispatch({ type: "ADD_ROUND", payload: round }),
+      setRounds: (rounds: DebateRound[]) => dispatch({ type: "SET_ROUNDS", payload: rounds }),
+      setConclusions: (conclusions: Conclusions) =>
+        dispatch({ type: "SET_CONCLUSIONS", payload: conclusions }),
+      addJudgeEvaluation: (evaluation: JudgeEvaluation) =>
+        dispatch({ type: "ADD_JUDGE_EVALUATION", payload: evaluation }),
+      setJudgeEvaluations: (evaluations: JudgeEvaluation[]) =>
+        dispatch({ type: "SET_JUDGE_EVALUATIONS", payload: evaluations }),
+      setFinalResult: (result: FinalResult) =>
+        dispatch({ type: "SET_FINAL_RESULT", payload: result }),
+      setUsage: (usage: UsageData) => dispatch({ type: "SET_USAGE", payload: usage }),
+      setError: (error: string) => dispatch({ type: "SET_ERROR", payload: error }),
+      completeDebate: () => dispatch({ type: "COMPLETE_DEBATE" }),
+      resetState: (initialOverride?: Partial<DebateState>) =>
+        dispatch({ type: "RESET", payload: initialOverride }),
     }),
-    [
-      setStatus,
-      setDisplayTopic,
-      setModels,
-      setOpeningStatements,
-      addRound,
-      setRounds,
-      setConclusions,
-      addJudgeEvaluation,
-      setJudgeEvaluations,
-      setFinalResult,
-      setUsage,
-      setError,
-      completeDebate,
-      resetState,
-    ]
+    [] // Empty deps - dispatch is stable and actions are pure wrappers
   );
 
   return {

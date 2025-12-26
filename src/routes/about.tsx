@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 function AboutComponent() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
+    <div className="flex flex-col items-center justify-start p-8 bg-background">
       <div className="w-full space-y-6">
         {/* Header */}
         <Card className="w-full">
@@ -46,12 +46,8 @@ function AboutComponent() {
           <CardContent className="space-y-3">
             <p className="text-base text-foreground leading-relaxed">
               When you provide a debate topic, the system first generates a concise, descriptive
-              title (7-12 words) to make it easier to identify and reference the debate later. This
-              uses a fast, cost-effective model (
-              <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
-                mistralai/ministral-14b-2512
-              </code>
-              ) to quickly summarize your topic into a clear title.
+              title (7-12 words) to make it easier to identify and reference your debate later. This
+              helps organize your debates and makes them easier to find in your debates list.
             </p>
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
               <p className="text-sm text-blue-900 dark:text-blue-100">
@@ -163,24 +159,10 @@ function AboutComponent() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-base text-foreground leading-relaxed">
-              Three independent AI judges evaluate the entire debate. The default judge panel
-              consists of:
+              Three independent AI judges evaluate the entire debate using advanced models from
+              leading AI providers. Each judge provides an independent assessment to ensure fairness
+              and comprehensive evaluation.
             </p>
-            <ul className="list-disc list-outside space-y-2 ml-6 text-base text-foreground">
-              <li>
-                <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">openai/gpt-5.2</code>
-              </li>
-              <li>
-                <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
-                  anthropic/claude-sonnet-4.5
-                </code>
-              </li>
-              <li>
-                <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
-                  google/gemini-3-pro-preview
-                </code>
-              </li>
-            </ul>
             <p className="text-base text-foreground leading-relaxed">
               Each judge receives the complete debate transcript (opening statements, all rebuttal
               rounds, and conclusions) and evaluates based on:
@@ -250,30 +232,27 @@ function AboutComponent() {
           </CardContent>
         </Card>
 
-        {/* Technical Details */}
+        {/* Getting Started */}
         <Card className="w-full">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-foreground">Technical Details</CardTitle>
+            <CardTitle className="text-2xl font-bold text-foreground">Getting Started</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Real-Time Updates</h3>
               <p className="text-base text-muted-foreground leading-relaxed">
-                The backend uses Server-Sent Events (SSE) to stream progress updates to the frontend
-                in real-time. As each stage completes, you'll see status updates and content appear
-                immediately, providing a live view of the debate as it unfolds.
+                As each stage of the debate completes, you'll see status updates and content appear
+                immediately, providing a live view of the debate as it unfolds. Watch the debate
+                progress in real-time from start to finish.
               </p>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Storage</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Data Storage</h3>
               <p className="text-base text-muted-foreground leading-relaxed">
-                All debates are automatically saved to your browser's local storage when complete.
-                This means:
+                All debates are automatically saved to your browser when complete. This means:
               </p>
               <ul className="list-disc list-outside space-y-2 ml-6 text-base text-muted-foreground mt-2">
-                <li>
-                  Your API key is stored locally (never sent to external servers except OpenRouter)
-                </li>
+                <li>Your API key is stored securely in your browser</li>
                 <li>Completed debates are saved for later review</li>
                 <li>All data stays in your browser - nothing is stored on external servers</li>
               </ul>
@@ -281,7 +260,7 @@ function AboutComponent() {
             <div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Available Models</h3>
               <p className="text-base text-muted-foreground leading-relaxed mb-2">
-                You can choose from various AI models available through OpenRouter:
+                You can choose from various AI models from leading providers:
               </p>
               <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
                 <li>Anthropic: Claude Haiku 4.5</li>
@@ -299,10 +278,9 @@ function AboutComponent() {
               </p>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">API Integration</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">API Key Setup</h3>
               <p className="text-base text-muted-foreground leading-relaxed">
-                The application uses OpenRouter as a unified API gateway to access multiple LLM
-                providers. You'll need an OpenRouter API key (available at{" "}
+                To use the platform, you'll need an OpenRouter API key. You can get one for free at{" "}
                 <a
                   href="https://openrouter.ai"
                   target="_blank"
@@ -311,23 +289,8 @@ function AboutComponent() {
                 >
                   openrouter.ai
                 </a>
-                ) to use the platform. Your API key is stored locally in your browser and sent with
-                each request to OpenRouter.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                Environment Configuration
-              </h3>
-              <p className="text-base text-muted-foreground leading-relaxed">
-                The backend API URL can be configured via the{" "}
-                <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">VITE_API_BASE_URL</code>{" "}
-                environment variable. By default, it connects to{" "}
-                <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
-                  http://localhost:3001
-                </code>
-                . Create a <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">.env</code>{" "}
-                file in the project root to customize this value.
+                . Your API key is stored securely in your browser and is only used to access the AI
+                models through OpenRouter.
               </p>
             </div>
           </CardContent>
@@ -475,260 +438,6 @@ function AboutComponent() {
           </CardContent>
         </Card>
 
-        {/* Architecture */}
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-foreground">
-              Technical Architecture
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Frontend Stack</h3>
-              <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
-                <li>
-                  <strong>React 19</strong> with TypeScript for type-safe component development
-                </li>
-                <li>
-                  <strong>Vite 7</strong> as the build tool and development server with HMR
-                </li>
-                <li>
-                  <strong>TanStack Router</strong> for file-based routing with type-safe navigation
-                </li>
-                <li>
-                  <strong>TanStack Form</strong> for form state management and validation
-                </li>
-                <li>
-                  <strong>Tailwind CSS</strong> for utility-first styling with dark mode support
-                </li>
-                <li>
-                  <strong>shadcn/ui</strong> components built on Radix UI primitives for accessible,
-                  customizable UI elements
-                </li>
-                <li>
-                  <strong>react-markdown</strong> with <strong>rehype-sanitize</strong> for
-                  rendering debate content with full markdown support and security
-                </li>
-                <li>
-                  <strong>Zod</strong> for runtime validation and type-safe schemas
-                </li>
-                <li>
-                  <strong>Sonner</strong> for toast notifications
-                </li>
-                <li>
-                  <strong>Biome</strong> for linting and code formatting
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">State Management</h3>
-              <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
-                <li>
-                  React hooks (
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useState</code>,{" "}
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useEffect</code>,{" "}
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useReducer</code>) for
-                  local component state
-                </li>
-                <li>
-                  Custom hooks (
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useApiKey</code>,{" "}
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebates</code>,{" "}
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebateStream</code>
-                  ,{" "}
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebateState</code>,{" "}
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
-                    useTitleGeneration
-                  </code>
-                  ) for shared state logic and business operations
-                </li>
-                <li>
-                  <strong>localStorage</strong> for persistent data storage (API keys, debates) with
-                  quota management
-                </li>
-                <li>Cross-tab synchronization via Storage API events and custom events</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Backend Integration</h3>
-              <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
-                <li>
-                  <strong>NestJS</strong> framework (Node.js) for the backend API
-                </li>
-                <li>
-                  <strong>OpenRouter API</strong> integration for unified LLM access across multiple
-                  providers
-                </li>
-                <li>
-                  <strong>Server-Sent Events (SSE)</strong> for real-time streaming of debate
-                  progress
-                </li>
-                <li>
-                  Parallel API calls where possible for efficiency (opening statements, rebuttals,
-                  conclusions)
-                </li>
-                <li>Exponential backoff retry logic for resilient API calls</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                Key Features & Patterns
-              </h3>
-              <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
-                <li>
-                  <strong>Error Boundary</strong> component for graceful error handling
-                </li>
-                <li>
-                  <strong>AbortController</strong> for request cancellation on component unmount
-                </li>
-                <li>
-                  <strong>Reading time calculations</strong> based on word count (200 words/minute)
-                </li>
-                <li>
-                  <strong>Markdown stripping</strong> utilities for accurate word counting
-                </li>
-                <li>
-                  <strong>Type-safe routing</strong> with TanStack Router's type inference
-                </li>
-                <li>
-                  <strong>Responsive design</strong> with mobile-first Tailwind CSS approach
-                </li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Component Structure */}
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-foreground">
-              Component Architecture
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Layout Components</h3>
-              <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">Navbar</code> - Top
-                  navigation bar with links to all major pages
-                </li>
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">ErrorBoundary</code> -
-                  Global React error boundary for graceful error handling and recovery
-                </li>
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
-                    FeatureErrorBoundary
-                  </code>{" "}
-                  - Feature-specific error boundary that provides recovery options without crashing
-                  the entire application
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Debate Components</h3>
-              <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">DebateContent</code> -
-                  Main container displaying opening statements, rounds, and conclusions
-                </li>
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
-                    DebateMessageCard
-                  </code>{" "}
-                  - Individual message cards for FOR/AGAINST sides with model info and reading time
-                </li>
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">FinalResultCard</code>{" "}
-                  - Displays final winner and aggregate scores
-                </li>
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
-                    JudgeEvaluationCard
-                  </code>{" "}
-                  - Shows individual judge evaluations with scores and reasoning
-                </li>
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">UsageStatsCard</code>{" "}
-                  - Token usage and cost statistics display
-                </li>
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">MarkdownContent</code>{" "}
-                  - Custom markdown renderer with styled components
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Custom Hooks</h3>
-              <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useApiKey</code> -
-                  Manages OpenRouter API key storage and retrieval from localStorage
-                </li>
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
-                    useDebateConnection
-                  </code>{" "}
-                  - Handles SSE connection management, event parsing, and connection lifecycle
-                </li>
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebateState</code>{" "}
-                  - Manages debate state with useReducer for complex state transitions
-                </li>
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebateStream</code>{" "}
-                  - Main hook that orchestrates SSE streaming, title generation, and state
-                  management
-                </li>
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useDebates</code> -
-                  Manages saved debates with CRUD operations, cross-tab sync, and localStorage
-                  persistence
-                </li>
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">useLocalStorage</code>{" "}
-                  - Generic localStorage utility hook with JSON serialization, quota checking, and
-                  cross-tab sync
-                </li>
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
-                    useTitleGeneration
-                  </code>{" "}
-                  - Handles debate title generation with API calls and fallback logic
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Route Pages</h3>
-              <ul className="list-disc list-outside space-y-1 ml-6 text-base text-muted-foreground">
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">index.tsx</code> -
-                  Home page with debate creation form using TanStack Form
-                </li>
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">
-                    debate.$debateId.tsx
-                  </code>{" "}
-                  - Debate viewing page with SSE streaming, real-time updates, and debate
-                  persistence
-                </li>
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">debates.tsx</code> -
-                  Debates list page with color-coded cards and deletion functionality
-                </li>
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">leaderboard.tsx</code>{" "}
-                  - Statistics page with model performance metrics and topic analytics
-                </li>
-                <li>
-                  <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm">about.tsx</code> -
-                  This page with comprehensive documentation
-                </li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Author & Credits */}
         <Card className="w-full">
@@ -738,9 +447,6 @@ function AboutComponent() {
           <CardContent className="space-y-3">
             <p className="text-base text-muted-foreground leading-relaxed">
               Developed by <strong className="text-foreground">Arber Braja</strong>.
-            </p>
-            <p className="text-base text-muted-foreground leading-relaxed">
-              Built with React 19, Vite 7, TanStack Router, Tailwind CSS, and shadcn/ui.
             </p>
             <p className="text-sm text-muted-foreground">Licensed under the MIT License.</p>
           </CardContent>

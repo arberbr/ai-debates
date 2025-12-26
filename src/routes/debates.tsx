@@ -28,7 +28,7 @@ function DebatesComponent() {
   } | null>(null);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
+    <div className="flex flex-col items-center justify-start p-8 bg-background">
       <FeatureErrorBoundary featureName="Debates List">
         <div className="w-full">
           {isLoading ? (

@@ -56,7 +56,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center p-8 bg-background">
+        <div className="flex items-center justify-center p-8 bg-background">
           <Card className="w-full max-w-2xl">
             <CardHeader>
               <CardTitle className="text-destructive">Something went wrong</CardTitle>

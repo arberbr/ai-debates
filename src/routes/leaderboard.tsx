@@ -67,7 +67,7 @@ function LeaderboardComponent() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
+      <div className="flex flex-col items-center justify-start p-8 bg-background">
         <div className="w-full space-y-6">
           <div className="mb-6 space-y-2">
             <Skeleton className="h-10 w-48" />
@@ -111,7 +111,7 @@ function LeaderboardComponent() {
 
   if (savedDebates.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
+      <div className="flex flex-col items-center justify-start p-8 bg-background">
         <div className="w-full">
           <EmptyState
             title="No debates found"
@@ -125,7 +125,7 @@ function LeaderboardComponent() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start p-8 bg-background">
+    <div className="flex flex-col items-center justify-start p-8 bg-background">
       <FeatureErrorBoundary featureName="Leaderboards">
         <div className="w-full space-y-6">
           {/* Header */}
