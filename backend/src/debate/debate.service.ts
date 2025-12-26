@@ -15,6 +15,7 @@ import {
 } from './interfaces/debate.interface';
 import { cleanString } from 'src/common/utils';
 import { UsageData as OpenRouterUsageData } from '../common/openrouter.service';
+import { DEBATE_CONFIG } from '../common/config';
 
 @Injectable()
 export class DebateService {
@@ -101,7 +102,7 @@ export class DebateService {
     this.logger.log('Generating title...');
     
     // Use a small, fast model for title generation
-    const smallModel = 'mistralai/ministral-14b-2512';
+    const smallModel = DEBATE_CONFIG.titleModel;
 
     const titlePrompt = `
       Rewrite the following topic as a concise, descriptive title (maximum 10-12 words). Keep the core meaning but make it clear and engaging.
@@ -124,7 +125,7 @@ export class DebateService {
     const response = await this.openRouterService.queryModel(
       smallModel,
       [{ role: 'user', content: titlePrompt }],
-      10000, // Shorter timeout for small model
+      DEBATE_CONFIG.timeouts.titleGeneration,
       apiKey,
     );
 
@@ -207,7 +208,7 @@ Provide your complete opening statement now. Be thorough, persuasive, and make s
       this.openRouterService.queryModel(
         yesModel,
         [{ role: 'user', content: yesOpeningPrompt }],
-        180000, // Longer timeout for longer responses
+        DEBATE_CONFIG.timeouts.openingStatements,
         apiKey,
       ).then((response) => {
         if (usageAccumulator && response?.usage) {
@@ -221,7 +222,7 @@ Provide your complete opening statement now. Be thorough, persuasive, and make s
       this.openRouterService.queryModel(
         noModel,
         [{ role: 'user', content: noOpeningPrompt }],
-        180000, // Longer timeout for longer responses
+        DEBATE_CONFIG.timeouts.openingStatements,
         apiKey,
       ).then((response) => {
         if (usageAccumulator && response?.usage) {
@@ -374,7 +375,7 @@ ${previousRound.yesMessage.content}`,
       this.openRouterService.queryModel(
         yesModel,
         [...yesContext, { role: 'user', content: yesPrompt }],
-        180000, // Longer timeout for detailed rebuttals
+        DEBATE_CONFIG.timeouts.rebuttals,
         apiKey,
       )
         .then((response) => {
@@ -396,7 +397,7 @@ ${previousRound.yesMessage.content}`,
       this.openRouterService.queryModel(
         noModel,
         [...noContext, { role: 'user', content: noPrompt }],
-        180000, // Longer timeout for detailed rebuttals
+        DEBATE_CONFIG.timeouts.rebuttals,
         apiKey,
       )
         .then((response) => {
@@ -528,7 +529,7 @@ Provide your complete concluding statement now.`;
       this.openRouterService.queryModel(
         yesModel,
         [{ role: 'user', content: yesConclusionPrompt }],
-        180000, // Longer timeout for conclusions
+        DEBATE_CONFIG.timeouts.conclusions,
         apiKey,
       ).then((response) => {
         if (usageAccumulator && response?.usage) {
@@ -542,7 +543,7 @@ Provide your complete concluding statement now.`;
       this.openRouterService.queryModel(
         noModel,
         [{ role: 'user', content: noConclusionPrompt }],
-        180000, // Longer timeout for conclusions
+        DEBATE_CONFIG.timeouts.conclusions,
         apiKey,
       ).then((response) => {
         if (usageAccumulator && response?.usage) {
@@ -685,7 +686,7 @@ REASONING:
     const response = await this.openRouterService.queryModel(
       judgeModel,
       [{ role: 'user', content: evaluationPrompt }],
-      120000,
+      DEBATE_CONFIG.timeouts.judgeEvaluation,
       apiKey,
     ).then((response) => {
       if (usageAccumulator && response?.usage) {
@@ -913,8 +914,7 @@ REASONING:
     const avgNo = count > 0 ? totalNo / count : 0;
 
     let winner: 'yes' | 'no' | 'tie';
-    if (avgYes > avgNo + 5) {
-      // 5 point threshold to avoid ties
+    if (avgYes > avgNo + DEBATE_CONFIG.tieThreshold) {
       winner = 'yes';
     } else if (avgNo > avgYes + 5) {
       winner = 'no';

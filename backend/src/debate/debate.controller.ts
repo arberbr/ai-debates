@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
+  BadRequestException,
   Res,
   Logger,
   Headers,
@@ -16,6 +17,8 @@ import { DebateService } from './debate.service';
 import { DebateStatusService } from './debate-status.service';
 import { StartDebateDto } from './dto/start-debate.dto';
 import { UsageData } from './interfaces/debate.interface';
+import { DEBATE_CONFIG } from '../common/config';
+import { sanitizeInput } from '../common/utils';
 
 @Controller('api/debate')
 export class DebateController {
@@ -45,8 +48,8 @@ export class DebateController {
       }
     }
 
-    console.log('[DebateController] Received request:', {
-      topic: dto.topic?.substring(0, 50) + '...',
+    this.logger.log('Received debate start request', {
+      topicLength: dto.topic?.length || 0,
       yesModel: dto.yesModel,
       noModel: dto.noModel,
       rounds: dto.rounds,
@@ -82,9 +85,19 @@ export class DebateController {
       timestamp: new Date().toISOString(),
     });
 
-    // Process and stream events
+    // Process and stream events with timeout
     try {
-      await this.processDebateWithStreaming(dto, debateId, res, normalizedApiKey);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error('Debate timeout: Process exceeded maximum time limit')),
+          DEBATE_CONFIG.timeouts.overallDebate,
+        );
+      });
+
+      await Promise.race([
+        this.processDebateWithStreaming(dto, debateId, res, normalizedApiKey),
+        timeoutPromise,
+      ]);
     } catch (error: any) {
       this.sendSSEEvent(res, {
         type: 'error',
@@ -107,6 +120,15 @@ export class DebateController {
     return status;
   }
 
+  @Get('health')
+  health() {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      activeDebates: this.statusService.getStatusCount(),
+    };
+  }
+
   @Post('generate-title')
   @HttpCode(HttpStatus.OK)
   async generateTitle(
@@ -116,7 +138,7 @@ export class DebateController {
     const { topic } = dto;
 
     if (!topic || !topic.trim()) {
-      throw new Error('Topic is required');
+      throw new BadRequestException('Topic is required');
     }
 
     // Extract API key from Authorization header (Bearer <token>)
@@ -129,7 +151,7 @@ export class DebateController {
     }
 
     if (!normalizedApiKey) {
-      throw new Error('OpenRouter API key is required');
+      throw new BadRequestException('OpenRouter API key is required');
     }
 
     this.logger.log('Generating title for topic...');
@@ -146,7 +168,7 @@ export class DebateController {
       };
     } catch (error: any) {
       this.logger.error('Title generation failed:', error);
-      throw new Error(`Failed to generate title: ${error.message}`);
+      throw new BadRequestException(`Failed to generate title: ${error.message}`);
     }
   }
 
@@ -167,10 +189,16 @@ export class DebateController {
     res: Response,
     normalizedApiKey: string | null,
   ): Promise<void> {
-    const { topic, yesModel, noModel, rounds, judgePrompt, title } = dto;
+    // Sanitize inputs
+    const topic = sanitizeInput(dto.topic, 300);
+    const yesModel = sanitizeInput(dto.yesModel, 100);
+    const noModel = sanitizeInput(dto.noModel, 100);
+    const rounds = dto.rounds;
+    const judgePrompt = dto.judgePrompt ? sanitizeInput(dto.judgePrompt, 2000) : undefined;
+    const title = dto.title ? sanitizeInput(dto.title, 200) : undefined;
 
     if (!normalizedApiKey) {
-      throw new Error('OpenRouter API key is required');
+      throw new BadRequestException('OpenRouter API key is required');
     }
 
     // Keep original topic for debate participants (they use the original text)
@@ -388,12 +416,7 @@ export class DebateController {
         timestamp: new Date().toISOString(),
       });
 
-      const judgeModels = [
-        'openai/gpt-5.2',
-        'anthropic/claude-sonnet-4.5',
-        'google/gemini-3-pro-preview',
-      ];
-      
+      const judgeModels = DEBATE_CONFIG.judgeModels;
       const uniqueJudgeModels = Array.from(new Set(judgeModels));
       const judgeEvaluations: any[] = [];
 
@@ -414,7 +437,7 @@ export class DebateController {
             rebuttalRounds,
             conclusions,
             judgeModel,
-            judgePrompt,
+            judgePrompt || '',
             normalizedApiKey,
             (status) => {
               this.sendSSEEvent(res, {

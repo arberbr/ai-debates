@@ -20,3 +20,20 @@ export function cleanString(title: string): string {
     // Final trim
     return cleaned.trim();
 }
+
+/**
+ * Sanitize user input to prevent injection attacks and control character issues.
+ * @param input - The input string to sanitize.
+ * @param maxLength - Maximum allowed length (default: 10000).
+ * @returns The sanitized input.
+ */
+export function sanitizeInput(input: string, maxLength: number = 10000): string {
+  if (typeof input !== 'string') {
+    return '';
+  }
+  
+  return input
+    .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
+    .trim()
+    .slice(0, maxLength);
+}
