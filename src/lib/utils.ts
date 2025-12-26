@@ -196,6 +196,24 @@ export function generateUUID(): string {
 }
 
 /**
+ * Gets the current timestamp as an ISO string
+ * @returns Current timestamp in ISO format
+ */
+export function getCurrentTimestamp(): string {
+  return new Date().toISOString();
+}
+
+/**
+ * Gets a formatted debate title with fallback
+ * @param topic - Debate topic string (may be undefined or empty)
+ * @param fallback - Fallback title if topic is empty (default: "Untitled Debate")
+ * @returns Formatted debate title
+ */
+export function getDebateTitle(topic?: string | null, fallback = "Untitled Debate"): string {
+  return topic?.trim() || fallback;
+}
+
+/**
  * Model statistics for leaderboard
  */
 export interface ModelStats {

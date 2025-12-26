@@ -21,3 +21,15 @@ export interface FormFieldApi<TValue = unknown> {
   handleChange: (value: TValue | ((prev: TValue) => TValue)) => void;
   handleBlur: () => void;
 }
+
+/**
+ * Generic form type that accepts any form with Field method
+ * This is a simplified type that works with TanStack Form's complex type system
+ * while still providing better type safety than using 'unknown'
+ */
+export type FormWithField = {
+  Field: (props: {
+    name: string;
+    children: (field: FormFieldApi) => React.ReactNode;
+  }) => React.ReactNode;
+};

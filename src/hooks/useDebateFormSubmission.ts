@@ -2,7 +2,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { STORAGE_KEYS } from "@/lib/constants";
-import { generateUUID } from "@/lib/utils";
+import { isStorageQuotaError } from "@/lib/error-utils";
+import { generateUUID, getCurrentTimestamp } from "@/lib/utils";
 import type { DebateFormErrors } from "@/lib/validation";
 import { parseDebateForm, validateDebateForm } from "@/lib/validation";
 import { useLocalStorage } from "./useLocalStorage";
@@ -69,7 +70,7 @@ export function useDebateFormSubmission({
         noModel: config.noModel,
         rounds: config.rounds.toString(),
         judgePrompt: config.judgePrompt?.trim() || "",
-        timestamp: new Date().toISOString(),
+        timestamp: getCurrentTimestamp(),
       };
 
       try {
@@ -91,7 +92,7 @@ export function useDebateFormSubmission({
 
         return true;
       } catch (e) {
-        if (e instanceof Error && e.name === "QuotaExceededError") {
+        if (isStorageQuotaError(e)) {
           toast.error("Storage limit reached. Please delete some debates to free up space.");
           return false;
         }

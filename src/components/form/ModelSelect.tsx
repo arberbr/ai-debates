@@ -7,19 +7,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MODEL_OPTIONS } from "@/lib/constants";
-import type { FormFieldApi } from "@/lib/form-types";
+import type { FormFieldApi, FormWithField } from "@/lib/form-types";
 import { FormErrorMessage } from "./FormErrorMessage";
 
 export interface ModelSelectProps {
   /** Form instance from TanStack Form */
-  // Using a permissive type to accept TanStack Form's complex generic type system
-  // The field parameter is properly typed internally via type assertion
-  form: {
-    Field: (props: {
-      name: string;
-      children: (field: unknown) => React.ReactNode;
-    }) => React.ReactNode;
-  };
+  form: FormWithField;
   /** Field name ('yesModel' or 'noModel') */
   fieldName: "yesModel" | "noModel";
   /** Field label text */
@@ -59,8 +52,7 @@ export function ModelSelect({
 
   return (
     <form.Field name={fieldName}>
-      {(field: unknown) => {
-        // Type assertion to FormFieldApi for type safety in implementation
+      {(field) => {
         const typedField = field as FormFieldApi<string>;
         return (
           <div className="flex-1 flex flex-col gap-3 min-w-[200px]">

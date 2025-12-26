@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { DebateCard } from "@/components/debate/DebateCard";
 import { FeatureErrorBoundary } from "@/components/FeatureErrorBoundary";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -15,8 +15,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDebates } from "@/hooks/useDebates";
-import { cleanString } from "@/lib/debate-utils";
-import { calculateTotalReadingTimeForSide, formatDate24Hour, getModelName } from "@/lib/utils";
+import { extractErrorMessage } from "@/lib/error-utils";
 
 function DebatesComponent() {
   const navigate = useNavigate();
@@ -26,6 +25,39 @@ function DebatesComponent() {
     id: string;
     title: string;
   } | null>(null);
+
+  const handleCardClick = useCallback(
+    (debateId: string) => {
+      navigate({
+        to: "/debate/$debateId",
+        params: { debateId },
+      });
+    },
+    [navigate]
+  );
+
+  const handleDeleteClick = useCallback((debate: { id: string; title: string }) => {
+    setDebateToDelete(debate);
+    setDeleteConfirmOpen(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (debateToDelete) {
+      try {
+        deleteDebate(debateToDelete.id);
+        toast.success("Debate deleted successfully");
+        setDeleteConfirmOpen(false);
+        setDebateToDelete(null);
+      } catch (error) {
+        const errorMessage = extractErrorMessage(
+          error,
+          "Failed to delete debate. Please try again."
+        );
+        toast.error(errorMessage);
+        console.error("Delete error:", error);
+      }
+    }
+  }, [debateToDelete, deleteDebate]);
 
   return (
     <div className="flex flex-col items-center justify-start p-8 bg-background">
@@ -54,110 +86,14 @@ function DebatesComponent() {
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-4">
-                {savedDebates.map((debate) => {
-                  const formattedDate = formatDate24Hour(debate.timestamp);
-                  const yesReadingTime = calculateTotalReadingTimeForSide(debate, "yes");
-                  const noReadingTime = calculateTotalReadingTimeForSide(debate, "no");
-
-                  const handleCardClick = () => {
-                    navigate({
-                      to: "/debate/$debateId",
-                      params: { debateId: debate.debateId },
-                    });
-                  };
-
-                  const handleKeyDown = (e: React.KeyboardEvent) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      handleCardClick();
-                    }
-                  };
-
-                  return (
-                    <Card
-                      key={debate.debateId}
-                      className={`border-0 cursor-pointer`}
-                      onClick={handleCardClick}
-                      onKeyDown={handleKeyDown}
-                      tabIndex={0}
-                      role="button"
-                      aria-label={`View debate: ${cleanString(debate.topic || "Untitled Debate")}`}
-                    >
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <CardTitle className={`text-lg line-clamp-2`}>
-                            {cleanString(debate.topic || "Untitled Debate")}
-                          </CardTitle>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const debateTitle = cleanString(debate.topic || "Untitled Debate");
-                              setDebateToDelete({ id: debate.debateId, title: debateTitle });
-                              setDeleteConfirmOpen(true);
-                            }}
-                            className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30 flex-shrink-0"
-                            aria-label={`Delete debate "${debate.topic || "Untitled Debate"}"`}
-                          >
-                            ×
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent className={`space-y-2`}>
-                        <div className="text-sm">
-                          <div className="font-semibold mb-1">Models:</div>
-                          <div className="text-xs space-y-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <span>FOR: {getModelName(debate.yesModel)}</span>
-                              <span className="opacity-70">{yesReadingTime}</span>
-                            </div>
-                            <div className="flex items-center justify-between gap-2">
-                              <span>AGAINST: {getModelName(debate.noModel)}</span>
-                              <span className="opacity-70">{noReadingTime}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-sm">
-                          <div className="font-semibold">
-                            Rounds: {debate.debateRounds?.length || 0}
-                          </div>
-                        </div>
-                        {debate.finalResult?.winner && (
-                          <div className="text-sm">
-                            <div className="font-semibold">
-                              Winner: {debate.finalResult.winner.toUpperCase()}
-                            </div>
-                          </div>
-                        )}
-                        {debate.usage && (
-                          <div className="text-sm pt-2">
-                            <div className="font-semibold mb-1">Usage:</div>
-                            <div className="text-xs space-y-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <span>Tokens:</span>
-                                <span className="opacity-70">
-                                  {debate.usage.total_tokens?.toLocaleString() || "0"}
-                                </span>
-                              </div>
-                              {debate.usage.cost !== undefined && (
-                                <div className="flex items-center justify-between gap-2">
-                                  <span>Cost:</span>
-                                  <span className="opacity-70 font-semibold">
-                                    ${debate.usage.cost.toFixed(4)}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                        <div className="text-xs opacity-70 dark:opacity-60 pt-2 border-t border-current/20 dark:border-current/30">
-                          {formattedDate}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                {savedDebates.map((debate) => (
+                  <DebateCard
+                    key={debate.debateId}
+                    debate={debate}
+                    onCardClick={handleCardClick}
+                    onDeleteClick={handleDeleteClick}
+                  />
+                ))}
               </div>
             </>
           )}
@@ -176,26 +112,7 @@ function DebatesComponent() {
             <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={async () => {
-                if (debateToDelete) {
-                  try {
-                    deleteDebate(debateToDelete.id);
-                    toast.success("Debate deleted successfully");
-                    setDeleteConfirmOpen(false);
-                    setDebateToDelete(null);
-                  } catch (error) {
-                    const errorMessage =
-                      error instanceof Error
-                        ? error.message
-                        : "Failed to delete debate. Please try again.";
-                    toast.error(errorMessage);
-                    console.error("Delete error:", error);
-                  }
-                }
-              }}
-            >
+            <Button variant="destructive" onClick={handleDeleteConfirm}>
               Delete
             </Button>
           </DialogFooter>

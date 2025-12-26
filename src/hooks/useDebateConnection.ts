@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { ApiError, apiClient, createDebateStartConfig } from "@/lib/api-client";
 import { SSE_BUFFER, STORAGE_KEYS } from "@/lib/constants";
+import { isAuthError as checkAuthError } from "@/lib/error-utils";
 import type {
   Conclusions,
   DebateConfig,
@@ -110,15 +111,8 @@ function isAuthError(error: unknown): boolean {
     return error.isAuthError;
   }
 
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  return (
-    errorMessage.includes("OpenRouter") ||
-    errorMessage.includes("API key") ||
-    errorMessage.includes("401") ||
-    errorMessage.includes("403") ||
-    errorMessage.includes("authentication") ||
-    errorMessage.includes("unauthorized")
-  );
+  // Use centralized error utility
+  return checkAuthError(error);
 }
 
 /**

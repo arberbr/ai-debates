@@ -1,19 +1,12 @@
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DEBATE_CONFIG } from "@/lib/constants";
-import type { FormFieldApi } from "@/lib/form-types";
+import type { FormFieldApi, FormWithField } from "@/lib/form-types";
 import { FormErrorMessage } from "./FormErrorMessage";
 
 export interface DebateTopicFieldProps {
   /** Form instance from TanStack Form */
-  // Using a permissive type to accept TanStack Form's complex generic type system
-  // The field parameter is properly typed internally via type assertion
-  form: {
-    Field: (props: {
-      name: string;
-      children: (field: unknown) => React.ReactNode;
-    }) => React.ReactNode;
-  };
+  form: FormWithField;
   /** Field error message */
   fieldError?: string;
   /** Callback to clear field error */
@@ -26,8 +19,7 @@ export interface DebateTopicFieldProps {
 export function DebateTopicField({ form, fieldError, onErrorClear }: DebateTopicFieldProps) {
   return (
     <form.Field name="topic">
-      {(field: unknown) => {
-        // Type assertion to FormFieldApi for type safety in implementation
+      {(field) => {
         const typedField = field as FormFieldApi<string>;
         const topicValue = typedField.state.value || "";
         const charCount = topicValue.length;

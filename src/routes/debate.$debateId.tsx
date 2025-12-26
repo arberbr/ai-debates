@@ -7,6 +7,7 @@ import { UsageStatsCard } from "@/components/debate/UsageStatsCard";
 import { FeatureErrorBoundary } from "@/components/FeatureErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ErrorAlertWithActions } from "@/components/ui/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiKey } from "@/hooks/useApiKey";
 import { useDebateSave } from "@/hooks/useDebateSave";
@@ -14,8 +15,10 @@ import { useDebateStream } from "@/hooks/useDebateStream";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { STORAGE_KEYS } from "@/lib/constants";
 import { cleanString } from "@/lib/debate-utils";
+import { extractErrorMessage, isCreditLimitError } from "@/lib/error-utils";
 import { debateConfigSchema } from "@/lib/schemas";
 import type { DebateConfig, SavedDebate } from "@/lib/types";
+import { getCurrentTimestamp } from "@/lib/utils";
 
 function DebateComponent() {
   const { debateId } = Route.useParams();
@@ -110,11 +113,13 @@ function DebateComponent() {
         noModel: config.noModel,
         rounds: config.rounds || "3",
         judgePrompt: config.judgePrompt || "",
-        timestamp: config.timestamp || new Date().toISOString(),
+        timestamp: config.timestamp || getCurrentTimestamp(),
       });
     } catch (e) {
-      const errorMessage =
-        e instanceof Error ? e.message : "An unexpected error occurred while loading the debate.";
+      const errorMessage = extractErrorMessage(
+        e,
+        "An unexpected error occurred while loading the debate."
+      );
       setConfigLoadError(errorMessage);
       console.error("Error loading pending debate config:", e);
     }
@@ -204,82 +209,29 @@ function DebateComponent() {
                     {displayData.status}
                   </output>
                   {configLoadError && (
-                    <div
-                      role="alert"
-                      aria-live="assertive"
-                      aria-atomic="true"
-                      className="p-5 bg-destructive/10 border-2 border-destructive/30 text-destructive rounded-lg mb-6"
-                    >
-                      <div className="font-bold text-lg mb-3 flex items-center gap-2">
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                        >
-                          <title>Configuration Error</title>
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                        <span>Configuration Error</span>
-                      </div>
-                      <div className="text-base whitespace-pre-wrap leading-relaxed">
-                        {configLoadError}
-                      </div>
-                      <div className="mt-4">
-                        <Button
-                          onClick={() => navigate({ to: "/" })}
-                          variant="primary"
-                          className="mr-2"
-                        >
-                          Start New Debate
-                        </Button>
-                        <Button onClick={() => navigate({ to: "/debates" })} variant="outline">
-                          View All Debates
-                        </Button>
-                      </div>
-                    </div>
+                    <ErrorAlertWithActions
+                      title="Configuration Error"
+                      message={configLoadError}
+                      primaryAction={{
+                        label: "Start New Debate",
+                        onClick: () => navigate({ to: "/" }),
+                      }}
+                      secondaryAction={{
+                        label: "View All Debates",
+                        onClick: () => navigate({ to: "/debates" }),
+                      }}
+                      className="mb-6"
+                    />
                   )}
                   {displayData.error && (
-                    <div
-                      role="alert"
-                      aria-live="assertive"
-                      aria-atomic="true"
-                      className="p-5 bg-destructive/10 border-2 border-destructive/30 text-destructive rounded-lg"
-                    >
-                      <div className="font-bold text-lg mb-3 flex items-center gap-2">
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                        >
-                          <title>Error</title>
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                        <span>Error occurred</span>
-                      </div>
-                      <div className="text-base whitespace-pre-wrap leading-relaxed">
-                        {displayData.error}
-                      </div>
-                      {displayData.error.includes("credits") ||
-                      displayData.error.includes("402") ? (
+                    <div>
+                      <ErrorAlertWithActions title="Error occurred" message={displayData.error} />
+                      {isCreditLimitError(displayData.error) && (
                         <div className="mt-4 p-3 bg-destructive/5 border border-destructive/20 rounded-md text-sm text-destructive/90">
                           This appears to be a credit limit issue. Please check your OpenRouter
                           account balance or try a different model.
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   )}
 

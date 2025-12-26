@@ -1,8 +1,8 @@
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
 import { ApiKeyCard } from "@/components/form/ApiKeyCard";
-import { DebateTopicField, type DebateTopicFieldProps } from "@/components/form/DebateTopicField";
-import { ModelSelect, type ModelSelectProps } from "@/components/form/ModelSelect";
+import { DebateTopicField } from "@/components/form/DebateTopicField";
+import { ModelSelect } from "@/components/form/ModelSelect";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useApiKey } from "@/hooks/useApiKey";
 import { useDebateFormSubmission } from "@/hooks/useDebateFormSubmission";
 import { DEBATE_CONFIG } from "@/lib/constants";
+import type { FormWithField } from "@/lib/form-types";
 
 function IndexComponent() {
   const { apiKey, showApiKeyField, setShowApiKeyField, updateApiKey, saveApiKey, hasApiKey } =
@@ -63,7 +64,7 @@ function IndexComponent() {
             </CardHeader>
             <CardContent>
               <DebateTopicField
-                form={form as unknown as DebateTopicFieldProps["form"]}
+                form={form as FormWithField}
                 fieldError={fieldErrors.topic}
                 onErrorClear={() => setFieldErrors((prev) => ({ ...prev, topic: undefined }))}
               />
@@ -77,7 +78,7 @@ function IndexComponent() {
             <CardContent>
               <div className="flex gap-3 w-full flex-wrap">
                 <ModelSelect
-                  form={form as unknown as ModelSelectProps["form"]}
+                  form={form as FormWithField}
                   fieldName="yesModel"
                   label="Model for Yes Side"
                   placeholder="Select model for Yes"
@@ -89,7 +90,7 @@ function IndexComponent() {
                   descriptionText="Choose the AI model that will argue in favor of the topic."
                 />
                 <ModelSelect
-                  form={form as unknown as ModelSelectProps["form"]}
+                  form={form as FormWithField}
                   fieldName="noModel"
                   label="Model for No Side"
                   placeholder="Select model for No"

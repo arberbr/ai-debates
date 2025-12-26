@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { extractErrorMessage } from "@/lib/error-utils";
 import type { DebateConfig, SavedDebate } from "@/lib/types";
+import { getCurrentTimestamp } from "@/lib/utils";
 import { useDebates } from "./useDebates";
 
 interface UseDebateSaveOptions {
@@ -101,7 +103,7 @@ export function useDebateSave({
       judgeEvaluations: displayData.judgeEvaluations as SavedDebate["judgeEvaluations"],
       finalResult: (displayData.finalResult as SavedDebate["finalResult"]) || null,
       usage: displayData.usage as SavedDebate["usage"],
-      timestamp: new Date().toISOString(),
+      timestamp: getCurrentTimestamp(),
     };
 
     try {
@@ -109,8 +111,7 @@ export function useDebateSave({
       hasSavedRef.current = true; // Mark as saved to prevent re-saving
     } catch (error) {
       console.error("Error saving debate:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to save debate. Please try again.";
+      const errorMessage = extractErrorMessage(error, "Failed to save debate. Please try again.");
       toast.error(errorMessage);
     }
   }, [

@@ -438,7 +438,6 @@ function AboutComponent() {
           </CardContent>
         </Card>
 
-
         {/* Author & Credits */}
         <Card className="w-full">
           <CardHeader>
