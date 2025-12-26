@@ -1,10 +1,10 @@
 /**
  * Debate orchestration service.
  * Orchestrates AI agents to debate a topic through multiple rounds and judges the outcome.
+ * Uses LangChain agents for debaters, judges, and title generation.
  */
 
 import { Injectable, Logger } from '@nestjs/common';
-import { OpenRouterService } from '../common/openrouter.service';
 import {
   DebateMessage,
   DebateRound,
@@ -16,12 +16,13 @@ import {
 import { cleanString } from 'src/common/utils';
 import { UsageData as OpenRouterUsageData } from '../common/openrouter.service';
 import { DEBATE_CONFIG } from '../common/config';
+import { DebaterAgent } from './agents/debater-agent';
+import { JudgeAgent } from './agents/judge-agent';
+import { TitleGeneratorAgent } from './agents/title-generator-agent';
 
 @Injectable()
 export class DebateService {
   private readonly logger = new Logger(DebateService.name);
-
-  constructor(private readonly openRouterService: OpenRouterService) {}
 
   /**
    * Accumulate usage data from multiple API calls.
@@ -91,7 +92,7 @@ export class DebateService {
   }
 
   /**
-   * Generate a title for the debate topic..
+   * Generate a title for the debate topic using TitleGeneratorAgent.
    */
   async generateTitle(
     topic: string,
@@ -101,59 +102,44 @@ export class DebateService {
   ): Promise<string> {
     this.logger.log('Generating title...');
     
+    if (!apiKey) {
+      throw new Error('OpenRouter API key is required');
+    }
+
     // Use a small, fast model for title generation
     const smallModel = DEBATE_CONFIG.titleModel;
-
-    const titlePrompt = `
-      Rewrite the following topic as a concise, descriptive title (maximum 10-12 words). Keep the core meaning but make it clear and engaging.
-      Original topic:
-      ${topic}
-          
-      Your task:
-      1. The title needs to be without quotes or extra formatting.
-      2. Understand the core subject matter and main proposition.
-      3. Rewrite it as a short, clear title that captures the essence (aim for 7-12 words maximum).
-      4. The title should be a question or statement that clearly indicates what is being debated.
-
-      Provide ONLY the rewritten title, nothing else. No explanations, no additional text.
-    `;
 
     if (onStatusUpdate) {
       onStatusUpdate(`Generating title with ${smallModel}...`);
     }
 
-    const response = await this.openRouterService.queryModel(
-      smallModel,
-      [{ role: 'user', content: titlePrompt }],
-      DEBATE_CONFIG.timeouts.titleGeneration,
-      apiKey,
-    );
+    try {
+      const titleAgent = new TitleGeneratorAgent({
+        model: smallModel,
+        apiKey,
+        timeout: DEBATE_CONFIG.timeouts.titleGeneration,
+      });
 
-    // Accumulate usage if accumulator provided
-    if (usageAccumulator && response?.usage) {
-      usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
-    }
+      const title = await titleAgent.generateTitle(topic);
+      const cleanedTitle = cleanString(title);
 
-    if (!response || !response.content) {
-      this.logger.warn('Title generation failed, using fallback');
+      this.logger.log(`Title generated: ${cleanedTitle}`);
+
+      if (onStatusUpdate) {
+        onStatusUpdate('Title generation complete');
+      }
+
+      return cleanedTitle;
+    } catch (error: any) {
+      this.logger.warn('Title generation failed, using fallback', error);
       // Generate a fallback title from the first part of the topic
       const fallback = topic.split('\n')[0].substring(0, 80).trim();
       return fallback.endsWith('...') ? fallback : fallback + '...';
     }
-
-    const title = cleanString(response.content);
-    
-    this.logger.log(`Title generated: ${title}`);
-
-    if (onStatusUpdate) {
-      onStatusUpdate('Title generation complete');
-    }
-
-    return title;
   }
 
   /**
-   * Generate opening statements for both debate participants.
+   * Generate opening statements for both debate participants using DebaterAgents.
    * Each statement should be 5-10 minutes when read (approximately 1000-2000 words, assuming 200 words per minute).
    */
   async generateOpeningStatements(
@@ -166,52 +152,35 @@ export class DebateService {
   ): Promise<OpeningStatements> {
     this.logger.log('Generating opening statements...');
 
-    const yesOpeningPrompt = `You are participating in a structured debate. You are arguing FOR the proposition.
+    if (!apiKey) {
+      throw new Error('OpenRouter API key is required');
+    }
 
-Debate Topic:
-${topic}
-
-Your task is to prepare and deliver your opening statement. This is your opportunity to present your case clearly and persuasively.
-
-Requirements:
-1. Your opening statement should be approximately 5-10 minutes long when read aloud (target 1000-2000 words, assuming 200 words per minute reading speed)
-2. Clearly state your position and main arguments
-3. Present supporting evidence and reasoning
-4. Anticipate potential counterarguments
-5. Make your case compelling and well-structured
-
-Provide your complete opening statement now. Be thorough, persuasive, and make sure your argument is well-supported.`;
-
-    const noOpeningPrompt = `You are participating in a structured debate. You are arguing AGAINST the proposition.
-
-Debate Topic:
-${topic}
-
-Your task is to prepare and deliver your opening statement. This is your opportunity to present your case clearly and persuasively.
-
-Requirements:
-1. Your opening statement should be approximately 5-10 minutes long when read aloud (target 1000-2000 words, assuming 200 words per minute reading speed)
-2. Clearly state your position and main arguments
-3. Present supporting evidence and reasoning
-4. Anticipate potential counterarguments
-5. Make your case compelling and well-structured
-
-Provide your complete opening statement now. Be thorough, persuasive, and make sure your argument is well-supported.`;
-
-    // Generate opening statements in parallel
+    // Generate opening statements in parallel using agents
     if (onStatusUpdate) {
       onStatusUpdate(`Querying ${yesModel} for opening statement (FOR side)...`);
       onStatusUpdate(`Querying ${noModel} for opening statement (AGAINST side)...`);
     }
 
+    const yesAgent = new DebaterAgent({
+      model: yesModel,
+      apiKey,
+      position: 'yes',
+      topic,
+      timeout: DEBATE_CONFIG.timeouts.openingStatements,
+    });
+
+    const noAgent = new DebaterAgent({
+      model: noModel,
+      apiKey,
+      position: 'no',
+      topic,
+      timeout: DEBATE_CONFIG.timeouts.openingStatements,
+    });
+
     const [yesResponse, noResponse] = await Promise.all([
-      this.openRouterService.queryModel(
-        yesModel,
-        [{ role: 'user', content: yesOpeningPrompt }],
-        DEBATE_CONFIG.timeouts.openingStatements,
-        apiKey,
-      ).then((response) => {
-        if (usageAccumulator && response?.usage) {
+      yesAgent.generateOpeningStatement(topic, 'yes').then((response) => {
+        if (usageAccumulator && response.usage) {
           usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
         }
         if (onStatusUpdate) {
@@ -219,13 +188,8 @@ Provide your complete opening statement now. Be thorough, persuasive, and make s
         }
         return response;
       }),
-      this.openRouterService.queryModel(
-        noModel,
-        [{ role: 'user', content: noOpeningPrompt }],
-        DEBATE_CONFIG.timeouts.openingStatements,
-        apiKey,
-      ).then((response) => {
-        if (usageAccumulator && response?.usage) {
+      noAgent.generateOpeningStatement(topic, 'no').then((response) => {
+        if (usageAccumulator && response.usage) {
           usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
         }
         if (onStatusUpdate) {
@@ -266,7 +230,7 @@ Provide your complete opening statement now. Be thorough, persuasive, and make s
   }
 
   /**
-   * Conduct a single rebuttal round between the two participants.
+   * Conduct a single rebuttal round between the two participants using DebaterAgents.
    * Round 1: Each side analyzes and rebuts the opponent's opening statement.
    * Subsequent rounds: Each side focuses on the opponent's arguments from the previous rebuttal round.
    */
@@ -283,103 +247,65 @@ Provide your complete opening statement now. Be thorough, persuasive, and make s
   ): Promise<DebateRound> {
     this.logger.log(`Conducting rebuttal round ${round}...`);
 
-    // Build context for YES side
-    const yesContext: Array<{ role: string; content: string }> = [
-      {
-        role: 'system',
-        content: `You are participating in a structured debate on the following topic:
-
-${topic}
-
-You are arguing FOR the proposition.
-
-Your opening statement:
-${openingStatements.yesStatement.content}`,
-      },
-    ];
-
-    // Build context for NO side
-    const noContext: Array<{ role: string; content: string }> = [
-      {
-        role: 'system',
-        content: `You are participating in a structured debate on the following topic:
-
-${topic}
-
-You are arguing AGAINST the proposition.
-
-Your opening statement:
-${openingStatements.noStatement.content}`,
-      },
-    ];
-
-    // For round 1, provide opponent's opening statement
-    // For subsequent rounds, provide previous round's arguments
-    if (round === 1) {
-      // First rebuttal: analyze and attack opponent's opening statement
-      yesContext.push({
-        role: 'user',
-        content: `Your opponent's opening statement (AGAINST side):
-${openingStatements.noStatement.content}`,
-      });
-
-      noContext.push({
-        role: 'user',
-        content: `Your opponent's opening statement (FOR side):
-${openingStatements.yesStatement.content}`,
-      });
-    } else {
-      // Subsequent rounds: focus on previous round's arguments
-      const previousRound = previousRounds[previousRounds.length - 1];
-      yesContext.push({
-        role: 'user',
-        content: `Your opponent's argument from Rebuttal Round ${previousRound.round} (AGAINST side):
-${previousRound.noMessage.content}`,
-      });
-
-      noContext.push({
-        role: 'user',
-        content: `Your opponent's argument from Rebuttal Round ${previousRound.round} (FOR side):
-${previousRound.yesMessage.content}`,
-      });
-
-      // Add all previous rebuttal rounds for context
-      for (const prevRound of previousRounds) {
-        yesContext.push({
-          role: 'assistant',
-          content: `Your rebuttal from Round ${prevRound.round}:\n${prevRound.yesMessage.content}`,
-        });
-        noContext.push({
-          role: 'assistant',
-          content: `Your rebuttal from Round ${prevRound.round}:\n${prevRound.noMessage.content}`,
-        });
-      }
+    if (!apiKey) {
+      throw new Error('OpenRouter API key is required');
     }
 
-    // Create prompts for this rebuttal round
-    const yesPrompt = round === 1
-      ? `This is Rebuttal Round ${round}. Analyze your opponent's opening statement carefully. Dissect their arguments, identify weaknesses, logical fallacies, or unsupported claims. Present strong counterarguments and defend your position. Be thorough and persuasive.`
-      : `This is Rebuttal Round ${round}. Focus on your opponent's arguments from the previous round. Address their specific points, counter their rebuttals, and strengthen your position. Be direct, logical, and persuasive.`;
-
-    const noPrompt = round === 1
-      ? `This is Rebuttal Round ${round}. Analyze your opponent's opening statement carefully. Dissect their arguments, identify weaknesses, logical fallacies, or unsupported claims. Present strong counterarguments and defend your position. Be thorough and persuasive.`
-      : `This is Rebuttal Round ${round}. Focus on your opponent's arguments from the previous round. Address their specific points, counter their rebuttals, and strengthen your position. Be direct, logical, and persuasive.`;
-
-    // Get responses in parallel
+    // Get responses in parallel using agents
     if (onStatusUpdate) {
       onStatusUpdate(`Waiting for ${yesModel} rebuttal (FOR side, round ${round})...`);
       onStatusUpdate(`Waiting for ${noModel} rebuttal (AGAINST side, round ${round})...`);
     }
 
+    const yesAgent = new DebaterAgent({
+      model: yesModel,
+      apiKey,
+      position: 'yes',
+      topic,
+      timeout: DEBATE_CONFIG.timeouts.rebuttals,
+    });
+
+    const noAgent = new DebaterAgent({
+      model: noModel,
+      apiKey,
+      position: 'no',
+      topic,
+      timeout: DEBATE_CONFIG.timeouts.rebuttals,
+    });
+
+    // Determine opponent arguments based on round
+    let yesOpponentArgs: string;
+    let noOpponentArgs: string;
+    let previousRoundsForHistory: Array<{ yesMessage: string; noMessage: string; round: number }> | undefined;
+
+    if (round === 1) {
+      // First rebuttal: use opponent's opening statement
+      yesOpponentArgs = openingStatements.noStatement.content;
+      noOpponentArgs = openingStatements.yesStatement.content;
+    } else {
+      // Subsequent rounds: use previous round's arguments
+      const previousRound = previousRounds[previousRounds.length - 1];
+      yesOpponentArgs = previousRound.noMessage.content;
+      noOpponentArgs = previousRound.yesMessage.content;
+      previousRoundsForHistory = previousRounds.map((r) => ({
+        yesMessage: r.yesMessage.content,
+        noMessage: r.noMessage.content,
+        round: r.round,
+      }));
+    }
+
     const [yesResponse, noResponse] = await Promise.all([
-      this.openRouterService.queryModel(
-        yesModel,
-        [...yesContext, { role: 'user', content: yesPrompt }],
-        DEBATE_CONFIG.timeouts.rebuttals,
-        apiKey,
-      )
+      yesAgent
+        .generateRebuttal(
+          topic,
+          'yes',
+          openingStatements.yesStatement.content,
+          yesOpponentArgs,
+          round,
+          previousRoundsForHistory,
+        )
         .then((response) => {
-          if (usageAccumulator && response?.usage) {
+          if (usageAccumulator && response.usage) {
             usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
           }
           if (onStatusUpdate) {
@@ -394,14 +320,17 @@ ${previousRound.yesMessage.content}`,
           }
           throw new Error(`Failed to get response from ${yesModel}: ${error.message}`);
         }),
-      this.openRouterService.queryModel(
-        noModel,
-        [...noContext, { role: 'user', content: noPrompt }],
-        DEBATE_CONFIG.timeouts.rebuttals,
-        apiKey,
-      )
+      noAgent
+        .generateRebuttal(
+          topic,
+          'no',
+          openingStatements.noStatement.content,
+          noOpponentArgs,
+          round,
+          previousRoundsForHistory,
+        )
         .then((response) => {
-          if (usageAccumulator && response?.usage) {
+          if (usageAccumulator && response.usage) {
             usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
           }
           if (onStatusUpdate) {
@@ -450,7 +379,7 @@ ${previousRound.yesMessage.content}`,
   }
 
   /**
-   * Generate conclusions for both debate participants.
+   * Generate conclusions for both debate participants using DebaterAgents.
    * Each conclusion should be 2-5 minutes when read (approximately 400-1000 words, assuming 200 words per minute).
    */
   async generateConclusions(
@@ -465,95 +394,62 @@ ${previousRound.yesMessage.content}`,
   ): Promise<Conclusions> {
     this.logger.log('Generating conclusions...');
 
-    // Build full debate context for both sides
-    let yesDebateHistory = `Your opening statement:\n${openingStatements.yesStatement.content}\n\n`;
-    let noDebateHistory = `Your opening statement:\n${openingStatements.noStatement.content}\n\n`;
-
-    for (const round of rebuttalRounds) {
-      yesDebateHistory += `Rebuttal Round ${round.round} - Your opponent's argument:\n${round.noMessage.content}\n\n`;
-      yesDebateHistory += `Rebuttal Round ${round.round} - Your rebuttal:\n${round.yesMessage.content}\n\n`;
-      
-      noDebateHistory += `Rebuttal Round ${round.round} - Your opponent's argument:\n${round.yesMessage.content}\n\n`;
-      noDebateHistory += `Rebuttal Round ${round.round} - Your rebuttal:\n${round.noMessage.content}\n\n`;
+    if (!apiKey) {
+      throw new Error('OpenRouter API key is required');
     }
 
-    const yesConclusionPrompt = `You are concluding a structured debate. You argued FOR the proposition.
-
-Debate Topic:
-${topic}
-
-Complete Debate History:
-${yesDebateHistory}
-
-Your task is to deliver your concluding statement. This is your final opportunity to:
-1. Summarize your main arguments and why they still hold
-2. Address how you responded to your opponent's challenges
-3. Reinforce why your position is correct
-4. You may acknowledge any weaknesses if appropriate, or concede if you believe your position has been successfully challenged
-
-Requirements:
-- Your conclusion should be approximately 2-5 minutes long when read aloud (target 400-1000 words, assuming 200 words per minute reading speed)
-- Be honest and reflective - if your position was successfully challenged, you may acknowledge this
-- Be clear and persuasive in restating why your position holds (or why you've changed your position if that's the case)
-
-Provide your complete concluding statement now.`;
-
-    const noConclusionPrompt = `You are concluding a structured debate. You argued AGAINST the proposition.
-
-Debate Topic:
-${topic}
-
-Complete Debate History:
-${noDebateHistory}
-
-Your task is to deliver your concluding statement. This is your final opportunity to:
-1. Summarize your main arguments and why they still hold
-2. Address how you responded to your opponent's challenges
-3. Reinforce why your position is correct
-4. You may acknowledge any weaknesses if appropriate, or concede if you believe your position has been successfully challenged
-
-Requirements:
-- Your conclusion should be approximately 2-5 minutes long when read aloud (target 400-1000 words, assuming 200 words per minute reading speed)
-- Be honest and reflective - if your position was successfully challenged, you may acknowledge this
-- Be clear and persuasive in restating why your position holds (or why you've changed your position if that's the case)
-
-Provide your complete concluding statement now.`;
-
-    // Generate conclusions in parallel
+    // Generate conclusions in parallel using agents
     if (onStatusUpdate) {
       onStatusUpdate(`Querying ${yesModel} for conclusion (FOR side)...`);
       onStatusUpdate(`Querying ${noModel} for conclusion (AGAINST side)...`);
     }
 
+    const yesAgent = new DebaterAgent({
+      model: yesModel,
+      apiKey,
+      position: 'yes',
+      topic,
+      timeout: DEBATE_CONFIG.timeouts.conclusions,
+    });
+
+    const noAgent = new DebaterAgent({
+      model: noModel,
+      apiKey,
+      position: 'no',
+      topic,
+      timeout: DEBATE_CONFIG.timeouts.conclusions,
+    });
+
+    // Build debate history for agents
+    const debateHistory = rebuttalRounds.map((r) => ({
+      yesMessage: r.yesMessage.content,
+      noMessage: r.noMessage.content,
+      round: r.round,
+    }));
+
     const [yesResponse, noResponse] = await Promise.all([
-      this.openRouterService.queryModel(
-        yesModel,
-        [{ role: 'user', content: yesConclusionPrompt }],
-        DEBATE_CONFIG.timeouts.conclusions,
-        apiKey,
-      ).then((response) => {
-        if (usageAccumulator && response?.usage) {
-          usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
-        }
-        if (onStatusUpdate) {
-          onStatusUpdate(`${yesModel} conclusion complete`);
-        }
-        return response;
-      }),
-      this.openRouterService.queryModel(
-        noModel,
-        [{ role: 'user', content: noConclusionPrompt }],
-        DEBATE_CONFIG.timeouts.conclusions,
-        apiKey,
-      ).then((response) => {
-        if (usageAccumulator && response?.usage) {
-          usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
-        }
-        if (onStatusUpdate) {
-          onStatusUpdate(`${noModel} conclusion complete`);
-        }
-        return response;
-      }),
+      yesAgent
+        .generateConclusion(topic, 'yes', openingStatements.yesStatement.content, debateHistory)
+        .then((response) => {
+          if (usageAccumulator && response.usage) {
+            usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
+          }
+          if (onStatusUpdate) {
+            onStatusUpdate(`${yesModel} conclusion complete`);
+          }
+          return response;
+        }),
+      noAgent
+        .generateConclusion(topic, 'no', openingStatements.noStatement.content, debateHistory)
+        .then((response) => {
+          if (usageAccumulator && response.usage) {
+            usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
+          }
+          if (onStatusUpdate) {
+            onStatusUpdate(`${noModel} conclusion complete`);
+          }
+          return response;
+        }),
     ]);
 
     if (!yesResponse || !yesResponse.content) {
@@ -587,7 +483,7 @@ Provide your complete concluding statement now.`;
   }
 
   /**
-   * Have a judge evaluate the debate.
+   * Have a judge evaluate the debate using JudgeAgent.
    */
   async evaluateDebate(
     topic: string,
@@ -600,120 +496,32 @@ Provide your complete concluding statement now.`;
     onStatusUpdate?: (status: string) => void,
     usageAccumulator?: { usage: UsageData },
   ): Promise<JudgeEvaluation> {
-    const startTime = Date.now();
-    this.logger.log(`[Judge ${judgeModel}] Starting evaluation for debate with ${rebuttalRounds.length} rebuttal rounds`);
-
-    // Build complete debate transcript
-    let transcript = '=== OPENING STATEMENTS ===\n\n';
-    transcript += `FOR (${openingStatements.yesStatement.model}):\n${openingStatements.yesStatement.content}\n\n`;
-    transcript += `AGAINST (${openingStatements.noStatement.model}):\n${openingStatements.noStatement.content}\n\n`;
-    
-    transcript += '=== REBUTTAL ROUNDS ===\n\n';
-    transcript += rebuttalRounds
-      .map(
-        (r) =>
-          `Rebuttal Round ${r.round}:\n` +
-          `FOR (${r.yesMessage.model}): ${r.yesMessage.content}\n\n` +
-          `AGAINST (${r.noMessage.model}): ${r.noMessage.content}\n\n`,
-      )
-      .join('---\n\n');
-    
-    transcript += '=== CONCLUSIONS ===\n\n';
-    transcript += `FOR (${conclusions.yesConclusion.model}):\n${conclusions.yesConclusion.content}\n\n`;
-    transcript += `AGAINST (${conclusions.noConclusion.model}):\n${conclusions.noConclusion.content}\n\n`;
-
-    const baseEvaluationCriteria = `Evaluate the debate based on:
-
-1. MAIN POINTS: Analyze the main arguments presented by each debater throughout the entire debate (opening statements, rebuttals, and conclusions)
-
-2. PRESENTATION QUALITY: Evaluate which side better presented their case. Consider:
-   - Clarity and organization of arguments
-   - Persuasiveness and rhetorical effectiveness
-   - How well each side structured and delivered their points
-
-3. DEFENSE QUALITY: Evaluate which side better defended their case. Consider:
-   - How effectively each side responded to opponent's arguments
-   - Ability to counter attacks and maintain position
-   - Logical consistency and ability to defend against challenges
-
-4. ADDITIONAL CRITERIA: Reasoning quality, evidence strength, factual accuracy, logical consistency, and overall argumentation quality`;
-
-    const evaluationPrompt = `You are an expert judge evaluating a structured debate.
-
-Debate Topic:
-${topic}
-
-Complete Debate Transcript:
-${transcript}
-
-Evaluation Criteria:
-${judgePrompt ? `${baseEvaluationCriteria}\n\nAdditional instructions from user:\n${judgePrompt}` : baseEvaluationCriteria}
-
-Your task:
-1. Carefully review the ENTIRE debate (opening statements, all rebuttal rounds, and conclusions)
-2. Analyze the main points presented by each side throughout the debate
-3. Evaluate which side better PRESENTED their case (clarity, organization, persuasiveness)
-4. Evaluate which side better DEFENDED their case (responses to attacks, maintaining position, logical consistency)
-5. Consider all the evaluation criteria provided above
-6. Provide scores (0-100) for each side based on overall performance
-7. Declare a winner (or tie if appropriate)
-8. Provide detailed reasoning for your decision
-
-Format your response as follows:
-
-MAIN POINTS ANALYSIS:
-[Analyze the key arguments from each side throughout the entire debate]
-
-PRESENTATION QUALITY:
-[Evaluate which side presented their case better and why]
-
-DEFENSE QUALITY:
-[Evaluate which side defended their case better and why]
-
-SCORES:
-FOR: [score 0-100]
-AGAINST: [score 0-100]
-
-WINNER: [FOR/AGAINST/TIE]
-
-REASONING:
-[Your detailed reasoning for the scores and winner, incorporating all evaluation criteria]`;
+    if (!apiKey) {
+      throw new Error('OpenRouter API key is required');
+    }
 
     if (onStatusUpdate) {
       onStatusUpdate(`Sending debate transcript to ${judgeModel} for evaluation...`);
     }
 
-    const response = await this.openRouterService.queryModel(
-      judgeModel,
-      [{ role: 'user', content: evaluationPrompt }],
-      DEBATE_CONFIG.timeouts.judgeEvaluation,
+    const judgeAgent = new JudgeAgent({
+      model: judgeModel,
       apiKey,
-    ).then((response) => {
-      if (usageAccumulator && response?.usage) {
-        usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
-      }
-      if (onStatusUpdate) {
-        onStatusUpdate(`${judgeModel} evaluation response received, parsing...`);
-      }
-      return response;
+      timeout: DEBATE_CONFIG.timeouts.judgeEvaluation,
     });
 
-    const evaluationText = response?.content || 'Evaluation failed';
+    const evaluation = await judgeAgent
+      .evaluateDebate(topic, openingStatements, rebuttalRounds, conclusions, judgePrompt || undefined)
+      .then((result) => {
+        // Note: JudgeAgent doesn't currently return usage data directly
+        // Usage tracking would need to be added if required
+        if (onStatusUpdate) {
+          onStatusUpdate(`${judgeModel} evaluation response received, parsing...`);
+        }
+        return result;
+      });
 
-    // Parse the evaluation
-    const scores = this.parseScores(evaluationText);
-    const winner = this.parseWinner(evaluationText);
-    
-    const duration = Date.now() - startTime;
-    this.logger.log(`[Judge ${judgeModel}] Evaluation completed in ${duration}ms. Winner: ${winner || 'undetermined'}`);
-
-    return {
-      judgeModel,
-      evaluation: evaluationText,
-      winner,
-      scores,
-      reasoning: this.extractReasoning(evaluationText),
-    };
+    return evaluation;
   }
 
   /**
