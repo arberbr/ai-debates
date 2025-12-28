@@ -16,9 +16,18 @@ import { Response } from 'express';
 import { DebateService } from './debate.service';
 import { DebateStatusService } from './debate-status.service';
 import { StartDebateDto } from './dto/start-debate.dto';
-import { UsageData } from './interfaces/debate.interface';
+import {
+  UsageData,
+  OpeningStatements,
+  DebateRound,
+  Conclusions,
+  JudgeEvaluation,
+} from './interfaces/debate.interface';
 import { DEBATE_CONFIG } from '../common/config';
 import { sanitizeInput } from '../common/utils';
+import { ExtractApiKey } from '../common/decorators/api-key.decorator';
+import { DEBATE_CONSTANTS } from '../common/constants/debate.constants';
+import { ApiKeyError, ValidationError } from '../common/exceptions/debate.exceptions';
 
 @Controller('api/debate')
 export class DebateController {
@@ -33,20 +42,11 @@ export class DebateController {
   @HttpCode(HttpStatus.OK)
   async startDebate(
     @Body() dto: StartDebateDto,
-    @Headers('authorization') authHeader: string | undefined,
+    @ExtractApiKey() normalizedApiKey: string | null,
     @Res() res: Response,
   ) {
     // Generate debate ID
     const debateId = crypto.randomUUID();
-
-    // Extract API key from Authorization header (Bearer <token>)
-    let normalizedApiKey: string | null = null;
-    if (authHeader) {
-      const match = authHeader.match(/^Bearer\s+(.+)$/i);
-      if (match && match[1]) {
-        normalizedApiKey = match[1].trim();
-      }
-    }
 
     this.logger.log('Received debate start request', {
       topicLength: dto.topic?.length || 0,
@@ -56,25 +56,23 @@ export class DebateController {
       hasApiKey: !!normalizedApiKey,
     });
 
-    // Validate topic length (max 300 characters)
+    // Validate topic length
     if (!dto.topic || dto.topic.trim().length === 0) {
-      res.status(HttpStatus.BAD_REQUEST).json({
-        error: 'Topic is required',
-      });
-      return;
+      throw new ValidationError('Topic is required', 'topic');
     }
-    if (dto.topic.length > 300) {
-      res.status(HttpStatus.BAD_REQUEST).json({
-        error: 'Topic must be 300 characters or less. Longer topics are not supported.',
-      });
-      return;
+    if (dto.topic.length > DEBATE_CONSTANTS.TOPIC.MAX_LENGTH) {
+      throw new ValidationError(
+        `Topic must be ${DEBATE_CONSTANTS.TOPIC.MAX_LENGTH} characters or less. Longer topics are not supported.`,
+        'topic',
+        dto.topic.length,
+      );
     }
 
     // Set SSE headers
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+    res.setHeader('Content-Type', DEBATE_CONSTANTS.SSE.HEADERS.CONTENT_TYPE);
+    res.setHeader('Cache-Control', DEBATE_CONSTANTS.SSE.HEADERS.CACHE_CONTROL);
+    res.setHeader('Connection', DEBATE_CONSTANTS.SSE.HEADERS.CONNECTION);
+    res.setHeader('X-Accel-Buffering', DEBATE_CONSTANTS.SSE.HEADERS.X_ACCEL_BUFFERING);
 
     // Send initial stream start event
     this.sendSSEEvent(res, {
@@ -98,11 +96,12 @@ export class DebateController {
         this.processDebateWithStreaming(dto, debateId, res, normalizedApiKey),
         timeoutPromise,
       ]);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       this.sendSSEEvent(res, {
         type: 'error',
         stage: 'error',
-        message: error.message || 'Unknown error occurred',
+        message: errorMessage,
         debateId,
         timestamp: new Date().toISOString(),
       });
@@ -133,25 +132,16 @@ export class DebateController {
   @HttpCode(HttpStatus.OK)
   async generateTitle(
     @Body() dto: { topic: string },
-    @Headers('authorization') authHeader?: string,
+    @ExtractApiKey() normalizedApiKey: string | null,
   ) {
     const { topic } = dto;
 
     if (!topic || !topic.trim()) {
-      throw new BadRequestException('Topic is required');
-    }
-
-    // Extract API key from Authorization header (Bearer <token>)
-    let normalizedApiKey: string | null = null;
-    if (authHeader) {
-      const match = authHeader.match(/^Bearer\s+(.+)$/i);
-      if (match && match[1]) {
-        normalizedApiKey = match[1].trim();
-      }
+      throw new ValidationError('Topic is required', 'topic');
     }
 
     if (!normalizedApiKey) {
-      throw new BadRequestException('OpenRouter API key is required');
+      throw new ApiKeyError();
     }
 
     this.logger.log('Generating title for topic...');
@@ -166,18 +156,21 @@ export class DebateController {
         success: true,
         title,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       this.logger.error('Title generation failed:', error);
-      throw new BadRequestException(`Failed to generate title: ${error.message}`);
+      throw new BadRequestException(`Failed to generate title: ${errorMessage}`);
     }
   }
 
   /**
    * Send an SSE event to the client
    */
-  private sendSSEEvent(res: Response, event: any): void {
+  private sendSSEEvent(res: Response, event: Record<string, unknown>): void {
     const data = JSON.stringify(event);
-    res.write(`data: ${data}\n\n`);
+    res.write(
+      `${DEBATE_CONSTANTS.SSE.EVENT_PREFIX}${data}${DEBATE_CONSTANTS.SSE.EVENT_SUFFIX}`,
+    );
   }
 
   /**
@@ -190,15 +183,19 @@ export class DebateController {
     normalizedApiKey: string | null,
   ): Promise<void> {
     // Sanitize inputs
-    const topic = sanitizeInput(dto.topic, 300);
-    const yesModel = sanitizeInput(dto.yesModel, 100);
-    const noModel = sanitizeInput(dto.noModel, 100);
+    const topic = sanitizeInput(dto.topic, DEBATE_CONSTANTS.TOPIC.MAX_LENGTH);
+    const yesModel = sanitizeInput(dto.yesModel, DEBATE_CONSTANTS.MODEL.MAX_LENGTH);
+    const noModel = sanitizeInput(dto.noModel, DEBATE_CONSTANTS.MODEL.MAX_LENGTH);
     const rounds = dto.rounds;
-    const judgePrompt = dto.judgePrompt ? sanitizeInput(dto.judgePrompt, 2000) : undefined;
-    const title = dto.title ? sanitizeInput(dto.title, 200) : undefined;
+    const judgePrompt = dto.judgePrompt
+      ? sanitizeInput(dto.judgePrompt, DEBATE_CONSTANTS.JUDGE_PROMPT.MAX_LENGTH)
+      : undefined;
+    const title = dto.title
+      ? sanitizeInput(dto.title, DEBATE_CONSTANTS.TITLE.MAX_LENGTH)
+      : undefined;
 
     if (!normalizedApiKey) {
-      throw new BadRequestException('OpenRouter API key is required');
+      throw new ApiKeyError();
     }
 
     // Keep original topic for debate participants (they use the original text)
@@ -239,7 +236,7 @@ export class DebateController {
         timestamp: new Date().toISOString(),
       });
 
-      let openingStatements: any;
+      let openingStatements: OpeningStatements;
       try {
         openingStatements = await this.debateService.generateOpeningStatements(
           originalTopic, // Use original topic for debate participants
@@ -266,8 +263,8 @@ export class DebateController {
           debateId,
           timestamp: new Date().toISOString(),
         });
-      } catch (openingError: any) {
-        const errorMessage = openingError.message || 'Unknown error occurred during opening statements';
+      } catch (openingError: unknown) {
+        const errorMessage = openingError instanceof Error ? openingError.message : 'Unknown error occurred during opening statements';
         this.sendSSEEvent(res, {
           type: 'error',
           stage: 'error',
@@ -288,7 +285,7 @@ export class DebateController {
         timestamp: new Date().toISOString(),
       });
 
-      const rebuttalRounds: any[] = [];
+      const rebuttalRounds: DebateRound[] = [];
 
       for (let round = 1; round <= rounds; round++) {
         try {
@@ -331,8 +328,8 @@ export class DebateController {
             debateId,
             timestamp: new Date().toISOString(),
           });
-        } catch (roundError: any) {
-          const errorMessage = roundError.message || 'Unknown error occurred during rebuttal round';
+        } catch (roundError: unknown) {
+          const errorMessage = roundError instanceof Error ? roundError.message : 'Unknown error occurred during rebuttal round';
           this.sendSSEEvent(res, {
             type: 'error',
             stage: 'error',
@@ -363,7 +360,7 @@ export class DebateController {
         timestamp: new Date().toISOString(),
       });
 
-      let conclusions: any;
+      let conclusions: Conclusions;
       try {
         conclusions = await this.debateService.generateConclusions(
           originalTopic,
@@ -392,8 +389,8 @@ export class DebateController {
           debateId,
           timestamp: new Date().toISOString(),
         });
-      } catch (conclusionError: any) {
-        const errorMessage = conclusionError.message || 'Unknown error occurred during conclusions';
+      } catch (conclusionError: unknown) {
+        const errorMessage = conclusionError instanceof Error ? conclusionError.message : 'Unknown error occurred during conclusions';
         this.sendSSEEvent(res, {
           type: 'error',
           stage: 'error',
@@ -418,7 +415,7 @@ export class DebateController {
 
       const judgeModels = DEBATE_CONFIG.judgeModels;
       const uniqueJudgeModels = Array.from(new Set(judgeModels));
-      const judgeEvaluations: any[] = [];
+      const judgeEvaluations: JudgeEvaluation[] = [];
 
       for (const judgeModel of uniqueJudgeModels) {
         this.logger.log(`[${debateId}] Starting evaluation with judge: ${judgeModel}`);
@@ -462,8 +459,8 @@ export class DebateController {
             debateId,
             timestamp: new Date().toISOString(),
           });
-        } catch (judgeError: any) {
-          const errorMessage = judgeError.message || 'Unknown error occurred during judge evaluation';
+        } catch (judgeError: unknown) {
+          const errorMessage = judgeError instanceof Error ? judgeError.message : 'Unknown error occurred during judge evaluation';
           this.logger.error(`[${debateId}] Judge ${judgeModel} evaluation failed:`, judgeError);
           this.sendSSEEvent(res, {
             type: 'error',
@@ -515,11 +512,12 @@ export class DebateController {
         debateId,
         timestamp: new Date().toISOString(),
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       this.sendSSEEvent(res, {
         type: 'error',
         stage: 'error',
-        message: error.message || 'Unknown error occurred',
+        message: errorMessage,
         debateId,
         timestamp: new Date().toISOString(),
       });

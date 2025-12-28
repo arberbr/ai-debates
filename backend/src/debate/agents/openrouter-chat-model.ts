@@ -13,7 +13,7 @@ import {
 } from '@langchain/core/messages';
 import { CallbackManagerForLLMRun } from '@langchain/core/callbacks/manager';
 import { ChatGenerationChunk, ChatResult } from '@langchain/core/outputs';
-import { OpenRouterService } from '../../common/openrouter.service';
+import { OpenRouterService, UsageData } from '../../common/openrouter.service';
 
 export interface OpenRouterChatModelConfig {
   model: string;
@@ -33,7 +33,7 @@ export class OpenRouterChatModel extends BaseChatModel {
   private temperature?: number;
   private maxTokens?: number;
   private timeout: number;
-  private lastUsage?: any; // Store last usage data
+  private lastUsage?: UsageData; // Store last usage data
 
   constructor(config: OpenRouterChatModelConfig) {
     super({});
@@ -52,7 +52,7 @@ export class OpenRouterChatModel extends BaseChatModel {
   /**
    * Get the last usage data from the most recent API call.
    */
-  getLastUsage(): any {
+  getLastUsage(): UsageData | undefined {
     return this.lastUsage;
   }
 

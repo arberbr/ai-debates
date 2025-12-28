@@ -53,9 +53,10 @@ export class TitleGeneratorAgent {
 
       this.logger.log(`Title generated: ${title}`);
       return title.trim();
-    } catch (error: any) {
-      this.logger.error(`Error generating title: ${error.message}`);
-      throw new Error(`Failed to generate title: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error generating title: ${errorMessage}`);
+      throw new Error(`Failed to generate title: ${errorMessage}`);
     }
   }
 }

@@ -90,7 +90,7 @@ export type DebateStage =
 
 export interface DebateStatus {
   stage: DebateStage;
-  data?: any;
+  data?: unknown;
   message?: string;
   timestamp: string;
 }

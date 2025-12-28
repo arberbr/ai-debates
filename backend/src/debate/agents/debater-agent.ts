@@ -77,9 +77,10 @@ Provide your complete opening statement now. Be thorough, persuasive, and make s
         content,
         usage,
       };
-    } catch (error: any) {
-      this.logger.error(`Error generating opening statement: ${error.message}`);
-      throw new Error(`Failed to generate opening statement: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error generating opening statement: ${errorMessage}`);
+      throw new Error(`Failed to generate opening statement: ${errorMessage}`);
     }
   }
 
@@ -139,9 +140,10 @@ ${opponentArguments}`;
         content,
         usage,
       };
-    } catch (error: any) {
-      this.logger.error(`Error generating rebuttal: ${error.message}`);
-      throw new Error(`Failed to generate rebuttal: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error generating rebuttal: ${errorMessage}`);
+      throw new Error(`Failed to generate rebuttal: ${errorMessage}`);
     }
   }
 
@@ -199,9 +201,10 @@ Provide your complete concluding statement now.`;
         content,
         usage,
       };
-    } catch (error: any) {
-      this.logger.error(`Error generating conclusion: ${error.message}`);
-      throw new Error(`Failed to generate conclusion: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error generating conclusion: ${errorMessage}`);
+      throw new Error(`Failed to generate conclusion: ${errorMessage}`);
     }
   }
 }

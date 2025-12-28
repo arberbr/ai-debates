@@ -3,20 +3,20 @@ import { IsString, IsNumber, Min, Max, Length, IsOptional } from 'class-validato
 export class StartDebateDto {
   @IsString()
   @Length(1, 300)
-  topic: string;
+  topic!: string;
 
   @IsString()
   @Length(1, 100)
-  yesModel: string;
+  yesModel!: string;
 
   @IsString()
   @Length(1, 100)
-  noModel: string;
+  noModel!: string;
 
   @IsNumber()
   @Min(1)
   @Max(5)
-  rounds: number;
+  rounds!: number;
 
   @IsString()
   @IsOptional()

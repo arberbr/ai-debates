@@ -25,7 +25,7 @@ export interface UsageData {
 
 export interface QueryResponse {
   content: string;
-  reasoning_details?: any;
+  reasoning_details?: unknown;
   usage?: UsageData;
 }
 
@@ -120,17 +120,18 @@ export class OpenRouterService {
         reasoning_details: message.reasoning_details,
         usage: usage,
       };
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') {
         this.logger.error(
           `Timeout querying model ${model} after ${timeout}ms`,
         );
       } else {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         this.logger.error(
           `Error querying model ${model}:`,
-          error.message,
+          errorMessage,
         );
-        if (error.stack) {
+        if (error instanceof Error && error.stack) {
           this.logger.error(`Stack trace:`, error.stack);
         }
       }

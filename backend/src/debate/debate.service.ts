@@ -19,6 +19,11 @@ import { DEBATE_CONFIG } from '../common/config';
 import { DebaterAgent } from './agents/debater-agent';
 import { JudgeAgent } from './agents/judge-agent';
 import { TitleGeneratorAgent } from './agents/title-generator-agent';
+import {
+  parseScores,
+  parseWinner,
+  extractReasoning,
+} from '../common/utils/judge-parser.util';
 
 @Injectable()
 export class DebateService {
@@ -130,7 +135,7 @@ export class DebateService {
       }
 
       return cleanedTitle;
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.logger.warn('Title generation failed, using fallback', error);
       // Generate a fallback title from the first part of the topic
       const fallback = topic.split('\n')[0].substring(0, 80).trim();
@@ -524,181 +529,9 @@ export class DebateService {
     return evaluation;
   }
 
-  /**
-   * Parse scores from judge evaluation text.
-   * Handles various formats and normalizes scores to 0-100 scale.
-   */
-  private parseScores(text: string): { yes: number; no: number } | undefined {
-    // Try multiple patterns for FOR score
-    const forPatterns = [
-      /FOR:\s*(\d+(?:\.\d+)?)/i,
-      /FOR\s+SCORE[:\s]+(\d+(?:\.\d+)?)/i,
-      /FOR\s+[:\s]+(\d+(?:\.\d+)?)/i,
-      /FOR\s*[:-]\s*(\d+(?:\.\d+)?)/i,
-    ];
-
-    // Try multiple patterns for AGAINST score
-    const againstPatterns = [
-      /AGAINST:\s*(\d+(?:\.\d+)?)/i,
-      /AGAINST\s+SCORE[:\s]+(\d+(?:\.\d+)?)/i,
-      /AGAINST\s+[:\s]+(\d+(?:\.\d+)?)/i,
-      /AGAINST\s*[:-]\s*(\d+(?:\.\d+)?)/i,
-    ];
-
-    let forScore: number | null = null;
-    let againstScore: number | null = null;
-
-    // Try to find FOR score
-    for (const pattern of forPatterns) {
-      const match = text.match(pattern);
-      if (match) {
-        forScore = parseFloat(match[1]);
-        break;
-      }
-    }
-
-    // Try to find AGAINST score
-    for (const pattern of againstPatterns) {
-      const match = text.match(pattern);
-      if (match) {
-        againstScore = parseFloat(match[1]);
-        break;
-      }
-    }
-
-    // If we found both scores, normalize them to 0-100 scale
-    if (forScore !== null && againstScore !== null) {
-      // Check if scores are already in 0-100 range
-      const maxScore = Math.max(forScore, againstScore);
-      
-      // If max score is > 100, assume they're on a different scale and normalize
-      // If max score is <= 100, assume they're already on 0-100 scale
-      if (maxScore > 100) {
-        // Normalize to 0-100 scale (assuming original scale is 0 to maxScore)
-        const normalizedFor = (forScore / maxScore) * 100;
-        const normalizedAgainst = (againstScore / maxScore) * 100;
-        return {
-          yes: Math.round(normalizedFor * 100) / 100,
-          no: Math.round(normalizedAgainst * 100) / 100,
-        };
-      } else if (maxScore <= 10) {
-        // If scores are 0-10, scale to 0-100
-        return {
-          yes: Math.round((forScore / 10) * 100 * 100) / 100,
-          no: Math.round((againstScore / 10) * 100 * 100) / 100,
-        };
-      } else {
-        // Already in 0-100 range, return as-is
-        return {
-          yes: Math.round(forScore * 100) / 100,
-          no: Math.round(againstScore * 100) / 100,
-        };
-      }
-    }
-
-    // Fallback: try to find any two numbers near "FOR" and "AGAINST" keywords
-    const forSection = text.match(/FOR[^\n]*?(\d+(?:\.\d+)?)/i);
-    const againstSection = text.match(/AGAINST[^\n]*?(\d+(?:\.\d+)?)/i);
-
-    if (forSection && againstSection) {
-      const forVal = parseFloat(forSection[1]);
-      const againstVal = parseFloat(againstSection[1]);
-      const maxVal = Math.max(forVal, againstVal);
-
-      if (maxVal > 100) {
-        return {
-          yes: Math.round((forVal / maxVal) * 100 * 100) / 100,
-          no: Math.round((againstVal / maxVal) * 100 * 100) / 100,
-        };
-      } else if (maxVal <= 10) {
-        return {
-          yes: Math.round((forVal / 10) * 100 * 100) / 100,
-          no: Math.round((againstVal / 10) * 100 * 100) / 100,
-        };
-      } else {
-        return {
-          yes: Math.round(forVal * 100) / 100,
-          no: Math.round(againstVal * 100) / 100,
-        };
-      }
-    }
-
-    // Last resort: find any two numbers in the SCORES section
-    const scoresSection = text.match(/SCORES?:?\s*([\s\S]*?)(?:\n\n|\n[A-Z]|$)/i);
-    if (scoresSection) {
-      const numbers = scoresSection[1].match(/\b(\d+(?:\.\d+)?)\b/g);
-      if (numbers && numbers.length >= 2) {
-        const forVal = parseFloat(numbers[0]);
-        const againstVal = parseFloat(numbers[1]);
-        const maxVal = Math.max(forVal, againstVal);
-
-        if (maxVal > 100) {
-          return {
-            yes: Math.round((forVal / maxVal) * 100 * 100) / 100,
-            no: Math.round((againstVal / maxVal) * 100 * 100) / 100,
-          };
-        } else if (maxVal <= 10) {
-          return {
-            yes: Math.round((forVal / 10) * 100 * 100) / 100,
-            no: Math.round((againstVal / 10) * 100 * 100) / 100,
-          };
-        } else {
-          return {
-            yes: Math.round(forVal * 100) / 100,
-            no: Math.round(againstVal * 100) / 100,
-          };
-        }
-      }
-    }
-
-    return undefined;
-  }
-
-  /**
-   * Parse winner from judge evaluation text.
-   */
-  private parseWinner(text: string): 'yes' | 'no' | 'tie' | undefined {
-    const upperText = text.toUpperCase();
-    if (upperText.includes('WINNER: FOR') || upperText.includes('WINNER:FOR')) {
-      return 'yes';
-    }
-    if (
-      upperText.includes('WINNER: AGAINST') ||
-      upperText.includes('WINNER:AGAINST')
-    ) {
-      return 'no';
-    }
-    if (upperText.includes('WINNER: TIE') || upperText.includes('WINNER:TIE')) {
-      return 'tie';
-    }
-
-    // Fallback: check for keywords
-    if (upperText.includes('FOR WINS') || upperText.includes('FOR WON')) {
-      return 'yes';
-    }
-    if (
-      upperText.includes('AGAINST WINS') ||
-      upperText.includes('AGAINST WON')
-    ) {
-      return 'no';
-    }
-    if (upperText.includes('TIE') || upperText.includes('DRAW')) {
-      return 'tie';
-    }
-
-    return undefined;
-  }
-
-  /**
-   * Extract reasoning section from evaluation text.
-   */
-  private extractReasoning(text: string): string {
-    const reasoningMatch = text.match(/REASONING:\s*(.+)/is);
-    if (reasoningMatch) {
-      return reasoningMatch[1].trim();
-    }
-    return text; // Return full text if no reasoning section found
-  }
+  // Note: Parsing methods moved to common/utils/judge-parser.util.ts
+  // to avoid code duplication. These methods are now imported and used
+  // via parseScores, parseWinner, and extractReasoning utilities.
 
   /**
    * Calculate aggregate scores and determine final winner.

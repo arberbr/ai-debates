@@ -8,6 +8,11 @@ import { HumanMessage } from '@langchain/core/messages';
 import { createOpenRouterChatModel, OpenRouterChatModelConfig } from './openrouter-chat-model';
 import { OpeningStatements, DebateRound, Conclusions } from '../interfaces/debate.interface';
 import { JudgeEvaluation } from '../interfaces/debate.interface';
+import {
+  parseScores,
+  parseWinner,
+  extractReasoning,
+} from '../../common/utils/judge-parser.util';
 
 export interface JudgeAgentConfig {
   model: string;
@@ -126,9 +131,9 @@ REASONING:
       const response = await this.chatModel.invoke(messages);
       const evaluationText = typeof response.content === 'string' ? response.content : String(response.content);
 
-      // Parse the evaluation
-      const scores = this.parseScores(evaluationText);
-      const winner = this.parseWinner(evaluationText);
+      // Parse the evaluation using shared utilities
+      const scores = parseScores(evaluationText);
+      const winner = parseWinner(evaluationText);
 
       const duration = Date.now() - startTime;
       this.logger.log(`Evaluation completed in ${duration}ms. Winner: ${winner || 'undetermined'}`);
@@ -138,120 +143,17 @@ REASONING:
         evaluation: evaluationText,
         winner,
         scores,
-        reasoning: this.extractReasoning(evaluationText),
+        reasoning: extractReasoning(evaluationText),
       };
-    } catch (error: any) {
-      this.logger.error(`Error evaluating debate: ${error.message}`);
-      throw new Error(`Failed to evaluate debate: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error(`Error evaluating debate: ${errorMessage}`);
+      throw new Error(`Failed to evaluate debate: ${errorMessage}`);
     }
   }
 
-  /**
-   * Parse scores from judge evaluation text.
-   */
-  private parseScores(text: string): { yes: number; no: number } | undefined {
-    const forPatterns = [
-      /FOR:\s*(\d+(?:\.\d+)?)/i,
-      /FOR\s+SCORE[:\s]+(\d+(?:\.\d+)?)/i,
-      /FOR\s+[:\s]+(\d+(?:\.\d+)?)/i,
-      /FOR\s*[:-]\s*(\d+(?:\.\d+)?)/i,
-    ];
-
-    const againstPatterns = [
-      /AGAINST:\s*(\d+(?:\.\d+)?)/i,
-      /AGAINST\s+SCORE[:\s]+(\d+(?:\.\d+)?)/i,
-      /AGAINST\s+[:\s]+(\d+(?:\.\d+)?)/i,
-      /AGAINST\s*[:-]\s*(\d+(?:\.\d+)?)/i,
-    ];
-
-    let forScore: number | null = null;
-    let againstScore: number | null = null;
-
-    for (const pattern of forPatterns) {
-      const match = text.match(pattern);
-      if (match) {
-        forScore = parseFloat(match[1]);
-        break;
-      }
-    }
-
-    for (const pattern of againstPatterns) {
-      const match = text.match(pattern);
-      if (match) {
-        againstScore = parseFloat(match[1]);
-        break;
-      }
-    }
-
-    if (forScore !== null && againstScore !== null) {
-      const maxScore = Math.max(forScore, againstScore);
-
-      if (maxScore > 100) {
-        const normalizedFor = (forScore / maxScore) * 100;
-        const normalizedAgainst = (againstScore / maxScore) * 100;
-        return {
-          yes: Math.round(normalizedFor * 100) / 100,
-          no: Math.round(normalizedAgainst * 100) / 100,
-        };
-      } else if (maxScore <= 10) {
-        return {
-          yes: Math.round((forScore / 10) * 100 * 100) / 100,
-          no: Math.round((againstScore / 10) * 100 * 100) / 100,
-        };
-      } else {
-        return {
-          yes: Math.round(forScore * 100) / 100,
-          no: Math.round(againstScore * 100) / 100,
-        };
-      }
-    }
-
-    return undefined;
-  }
-
-  /**
-   * Parse winner from judge evaluation text.
-   */
-  private parseWinner(text: string): 'yes' | 'no' | 'tie' | undefined {
-    const upperText = text.toUpperCase();
-    if (upperText.includes('WINNER: FOR') || upperText.includes('WINNER:FOR')) {
-      return 'yes';
-    }
-    if (
-      upperText.includes('WINNER: AGAINST') ||
-      upperText.includes('WINNER:AGAINST')
-    ) {
-      return 'no';
-    }
-    if (upperText.includes('WINNER: TIE') || upperText.includes('WINNER:TIE')) {
-      return 'tie';
-    }
-
-    if (upperText.includes('FOR WINS') || upperText.includes('FOR WON')) {
-      return 'yes';
-    }
-    if (
-      upperText.includes('AGAINST WINS') ||
-      upperText.includes('AGAINST WON')
-    ) {
-      return 'no';
-    }
-    if (upperText.includes('TIE') || upperText.includes('DRAW')) {
-      return 'tie';
-    }
-
-    return undefined;
-  }
-
-  /**
-   * Extract reasoning section from evaluation text.
-   */
-  private extractReasoning(text: string): string {
-    const reasoningMatch = text.match(/REASONING:\s*(.+)/is);
-    if (reasoningMatch) {
-      return reasoningMatch[1].trim();
-    }
-    return text;
-  }
+  // Note: Parsing methods moved to common/utils/judge-parser.util.ts
+  // to avoid code duplication. These methods are now imported and used
+  // via parseScores, parseWinner, and extractReasoning utilities.
 }
 
