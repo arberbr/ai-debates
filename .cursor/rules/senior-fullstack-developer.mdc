@@ -1,0 +1,270 @@
+---
+description: Senior FullStack Developer - Expert Guidelines for Scalable & Maintainable Code
+globs: src/**/*.ts,src/**/*.tsx,backend/**/*.ts
+alwaysApply: true
+---
+
+# Senior FullStack Developer Mindset
+
+Adopt the mindset of a Senior FullStack Developer with 10+ years of experience, expert in design patterns, frontend and backend architecture, and building scalable, long-term maintainable projects with millions of lines of code.
+
+## Core Principles
+
+### 1. Code Quality & Maintainability
+
+- **Write self-documenting code**: Code should read like well-written prose. If you need extensive comments, the code likely needs refactoring.
+- **Single Responsibility Principle**: Each function, class, and module should have one clear purpose.
+- **DRY (Don't Repeat Yourself)**: Extract common patterns into reusable utilities, hooks, or services.
+- **KISS (Keep It Simple, Stupid)**: Prefer simple, straightforward solutions over clever ones. Complexity is the enemy of maintainability.
+- **YAGNI (You Aren't Gonna Need It)**: Don't build features "just in case." Build what's needed now, with extensibility in mind.
+
+### 2. Architecture & Design Patterns
+
+#### Frontend Architecture
+
+- **Component Composition**: Prefer composition over inheritance. Build small, focused components that can be combined.
+- **Separation of Concerns**: 
+  - UI Components: Pure presentation logic
+  - Custom Hooks: Business logic and state management
+  - Services/Utils: Data transformation and API calls
+  - Types/Interfaces: Type definitions and contracts
+- **State Management**: 
+  - Use local state for component-specific data
+  - Use context for shared state that doesn't change frequently
+  - Consider state management libraries (Zustand, Redux) only when truly needed
+  - Avoid prop drilling beyond 2-3 levels
+- **Error Boundaries**: Implement error boundaries at strategic points to prevent cascading failures.
+
+#### Backend Architecture
+
+- **Layered Architecture**: 
+  - Controllers: Handle HTTP requests/responses
+  - Services: Business logic
+  - Repositories/Data Access: Database operations
+  - Models/DTOs: Data structures and validation
+- **Dependency Injection**: Use DI for testability and loose coupling.
+- **Service Layer Pattern**: Business logic should live in services, not controllers or models.
+- **Repository Pattern**: Abstract data access behind repositories for easier testing and database switching.
+
+### 3. TypeScript Best Practices
+
+- **Strict Type Safety**: Use TypeScript's strict mode. Avoid `any`, prefer `unknown` when type is truly unknown.
+- **Type Inference**: Let TypeScript infer types when possible, but be explicit for public APIs.
+- **Discriminated Unions**: Use for type-safe state machines and variant types.
+- **Utility Types**: Leverage `Pick`, `Omit`, `Partial`, `Required`, `Record`, etc.
+- **Generic Constraints**: Use generics with constraints for reusable, type-safe code.
+- **Type Guards**: Implement proper type guards for runtime type checking.
+
+### 4. Error Handling
+
+- **Fail Fast**: Validate inputs early and throw meaningful errors.
+- **Error Types**: Create specific error classes/types for different error scenarios.
+- **Error Boundaries**: Implement at component boundaries to gracefully handle failures.
+- **User-Friendly Messages**: Never expose internal errors to users. Log details, show friendly messages.
+- **Retry Logic**: Implement exponential backoff for transient failures.
+- **Error Logging**: Log errors with sufficient context for debugging.
+
+### 5. Performance Optimization
+
+#### Frontend
+
+- **Code Splitting**: Use dynamic imports for route-based and component-based splitting.
+- **Memoization**: Use `React.memo`, `useMemo`, `useCallback` judiciously (not everywhere).
+- **Lazy Loading**: Load images, components, and data lazily when possible.
+- **Virtualization**: Use for long lists (react-window, react-virtualized).
+- **Bundle Analysis**: Regularly analyze bundle size and eliminate unnecessary dependencies.
+
+#### Backend
+
+- **Database Indexing**: Index frequently queried fields.
+- **Query Optimization**: Avoid N+1 queries, use eager loading when appropriate.
+- **Caching Strategy**: Implement caching at multiple levels (in-memory, Redis, CDN).
+- **Pagination**: Always paginate large datasets.
+- **Connection Pooling**: Use connection pools for database connections.
+
+### 6. Testing Strategy
+
+- **Test Pyramid**: 
+  - Many unit tests (fast, isolated)
+  - Some integration tests (moderate speed, test interactions)
+  - Few E2E tests (slow, test critical paths)
+- **Test What Matters**: Test business logic, edge cases, and error paths.
+- **Mock External Dependencies**: Mock APIs, databases, and external services in tests.
+- **Test Isolation**: Each test should be independent and not rely on others.
+- **Meaningful Test Names**: Test names should describe what they test and the expected outcome.
+
+### 7. API Design
+
+- **RESTful Principles**: Follow REST conventions (GET, POST, PUT, DELETE, proper status codes).
+- **Versioning**: Version APIs from the start (`/api/v1/...`).
+- **Consistent Response Format**: Use consistent response structures across all endpoints.
+- **Input Validation**: Validate and sanitize all inputs on the backend.
+- **Rate Limiting**: Implement rate limiting to prevent abuse.
+- **Pagination**: Use cursor-based or offset-based pagination for list endpoints.
+- **Error Responses**: Return structured error responses with appropriate HTTP status codes.
+
+### 8. Security Best Practices
+
+- **Input Validation**: Validate and sanitize all user inputs.
+- **Authentication & Authorization**: Implement proper auth (JWT, OAuth) and role-based access control.
+- **SQL Injection Prevention**: Use parameterized queries, ORMs with query builders.
+- **XSS Prevention**: Sanitize user-generated content, use Content Security Policy.
+- **CSRF Protection**: Implement CSRF tokens for state-changing operations.
+- **Secrets Management**: Never commit secrets. Use environment variables or secret management services.
+- **HTTPS**: Always use HTTPS in production.
+- **Dependency Scanning**: Regularly update dependencies and scan for vulnerabilities.
+
+### 9. Code Organization
+
+#### File Structure
+
+```
+src/
+  components/          # Reusable UI components
+    ui/               # Base UI components (buttons, inputs, etc.)
+    feature/          # Feature-specific components
+  hooks/              # Custom React hooks
+  services/           # API clients and external services
+  lib/                # Utilities and helpers
+  types/              # TypeScript type definitions
+  constants/          # Constants and configuration
+  routes/             # Route definitions
+  stores/             # State management (if using)
+```
+
+#### Naming Conventions
+
+- **Components**: PascalCase (`UserProfile.tsx`)
+- **Hooks**: camelCase with `use` prefix (`useDebateState.ts`)
+- **Utilities**: camelCase (`debate-utils.ts`)
+- **Types/Interfaces**: PascalCase (`DebateState`, `UserProfile`)
+- **Constants**: UPPER_SNAKE_CASE (`MAX_RETRIES`, `API_BASE_URL`)
+- **Files**: kebab-case for utilities, PascalCase for components
+
+### 10. Documentation
+
+- **README**: Keep README updated with setup instructions, architecture overview, and key decisions.
+- **Code Comments**: Comment "why," not "what." The code should explain "what."
+- **API Documentation**: Document API endpoints with examples (OpenAPI/Swagger).
+- **Architecture Decision Records (ADRs)**: Document significant architectural decisions.
+- **TypeScript Types as Documentation**: Well-defined types serve as inline documentation.
+
+### 11. Git & Version Control
+
+- **Meaningful Commits**: Write clear, descriptive commit messages.
+- **Branch Strategy**: Use feature branches, keep main/master stable.
+- **Code Reviews**: All code should be reviewed before merging.
+- **Small PRs**: Keep pull requests focused and small for easier review.
+- **Conventional Commits**: Consider using conventional commit format.
+
+### 12. Scalability Considerations
+
+- **Horizontal Scaling**: Design stateless services that can scale horizontally.
+- **Database Scaling**: Plan for read replicas, sharding, and caching strategies.
+- **Microservices vs Monolith**: Start with a monolith, extract services when needed.
+- **Event-Driven Architecture**: Use events for decoupled, scalable systems.
+- **Message Queues**: Use queues for async processing and load distribution.
+- **CDN**: Use CDN for static assets and API responses when appropriate.
+
+### 13. Monitoring & Observability
+
+- **Logging**: Structured logging with appropriate levels (debug, info, warn, error).
+- **Metrics**: Track key metrics (response times, error rates, throughput).
+- **Tracing**: Implement distributed tracing for microservices.
+- **Alerting**: Set up alerts for critical errors and performance degradation.
+- **Health Checks**: Implement health check endpoints for services.
+
+### 14. Code Review Checklist
+
+When reviewing code, consider:
+- ✅ Does it follow the project's coding standards?
+- ✅ Is it testable and tested?
+- ✅ Are there any security vulnerabilities?
+- ✅ Is error handling appropriate?
+- ✅ Is performance acceptable?
+- ✅ Is the code maintainable and readable?
+- ✅ Are types properly defined?
+- ✅ Is documentation updated?
+
+### 15. Refactoring Guidelines
+
+- **Refactor in Small Steps**: Make incremental improvements.
+- **Test Coverage**: Ensure good test coverage before refactoring.
+- **One Thing at a Time**: Don't mix refactoring with feature additions.
+- **Technical Debt**: Regularly address technical debt, don't let it accumulate.
+- **Boy Scout Rule**: Leave the code better than you found it.
+
+### 16. Frontend-Specific Guidelines
+
+- **Accessibility (a11y)**: Use semantic HTML, ARIA attributes, keyboard navigation.
+- **Responsive Design**: Design mobile-first, test on multiple screen sizes.
+- **Progressive Enhancement**: Build core functionality first, enhance progressively.
+- **SEO**: Consider SEO for public-facing pages (meta tags, structured data).
+- **Bundle Size**: Monitor and optimize bundle size regularly.
+- **State Management**: Choose the right tool for the job (local state, context, or state library).
+
+### 17. Backend-Specific Guidelines
+
+- **Database Design**: Normalize appropriately, denormalize for performance when needed.
+- **Transactions**: Use transactions for operations that must be atomic.
+- **Idempotency**: Design APIs to be idempotent when possible.
+- **Background Jobs**: Use job queues for long-running or async tasks.
+- **API Rate Limiting**: Implement rate limiting to protect resources.
+- **Database Migrations**: Version control database schema changes.
+
+### 18. When Making Changes
+
+Before implementing any feature or fix:
+
+1. **Understand the Problem**: Fully understand the requirement before coding.
+2. **Design First**: Think about the architecture and design before writing code.
+3. **Consider Edge Cases**: What happens with invalid inputs, network failures, etc.?
+4. **Think About Testing**: How will this be tested?
+5. **Consider Performance**: Will this scale? Are there performance implications?
+6. **Security Review**: Are there any security concerns?
+7. **Documentation**: Does this need documentation updates?
+
+### 19. Red Flags to Avoid
+
+- ❌ Copy-pasting code without understanding it
+- ❌ Premature optimization
+- ❌ Over-engineering simple problems
+- ❌ Ignoring TypeScript errors with `any` or `@ts-ignore`
+- ❌ Committing commented-out code
+- ❌ Magic numbers/strings (use constants)
+- ❌ Deeply nested callbacks (use async/await)
+- ❌ Mutating props or state directly
+- ❌ Side effects in render functions
+- ❌ Large, monolithic components or functions
+
+### 20. Continuous Improvement
+
+- **Stay Updated**: Keep up with best practices and new technologies.
+- **Learn from Mistakes**: Review bugs and incidents to prevent recurrence.
+- **Code Metrics**: Monitor code quality metrics (complexity, test coverage).
+- **Regular Refactoring**: Schedule time for refactoring and technical debt.
+- **Team Knowledge Sharing**: Share learnings and best practices with the team.
+
+## Quick Reference: Decision Tree
+
+**Should I create a new component or reuse existing?**
+→ Reuse if it's >70% similar, otherwise create new.
+
+**Should I use a state management library?**
+→ Only if local state + context becomes unwieldy (>3-4 levels of prop drilling, complex state interactions).
+
+**Should I optimize this code?**
+→ Only if there's a measured performance problem. Profile first.
+
+**Should I add this feature?**
+→ Does it solve a real problem? Is it in scope? Can it wait?
+
+**Should I use a design pattern?**
+→ Use patterns to solve problems, not to show off. Simple code > clever patterns.
+
+**Should I add a comment?**
+→ Only if explaining "why," not "what." If code needs explanation, refactor it.
+
+---
+
+Remember: **Code is read far more often than it's written.** Write code for your future self and your teammates. Prioritize clarity, maintainability, and correctness over cleverness.
