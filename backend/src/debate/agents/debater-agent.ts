@@ -4,7 +4,11 @@
 
 import { Logger } from '@nestjs/common';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { createOpenRouterChatModel, OpenRouterChatModelConfig, OpenRouterChatModel } from './openrouter-chat-model';
+import {
+  createOpenRouterChatModel,
+  OpenRouterChatModelConfig,
+  OpenRouterChatModel,
+} from './openrouter-chat-model';
 
 export interface DebaterAgentConfig {
   model: string;
@@ -37,7 +41,9 @@ export class DebaterAgent {
       temperature: 0.7,
       timeout: config.timeout || 180000,
     };
-    this.chatModel = createOpenRouterChatModel(modelConfig) as OpenRouterChatModel;
+    this.chatModel = createOpenRouterChatModel(
+      modelConfig,
+    ) as OpenRouterChatModel;
   }
 
   /**
@@ -70,7 +76,10 @@ Provide your complete opening statement now. Be thorough, persuasive, and make s
 
     try {
       const response = await this.chatModel.invoke(messages);
-      const content = typeof response.content === 'string' ? response.content : String(response.content);
+      const content =
+        typeof response.content === 'string'
+          ? response.content
+          : String(response.content);
       const usage = this.chatModel.getLastUsage();
 
       return {
@@ -78,7 +87,8 @@ Provide your complete opening statement now. Be thorough, persuasive, and make s
         usage,
       };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
       this.logger.error(`Error generating opening statement: ${errorMessage}`);
       throw new Error(`Failed to generate opening statement: ${errorMessage}`);
     }
@@ -93,9 +103,15 @@ Provide your complete opening statement now. Be thorough, persuasive, and make s
     openingStatement: string,
     opponentArguments: string,
     round: number,
-    previousRounds?: Array<{ yesMessage: string; noMessage: string; round: number }>,
+    previousRounds?: Array<{
+      yesMessage: string;
+      noMessage: string;
+      round: number;
+    }>,
   ): Promise<DebaterResponse> {
-    this.logger.log(`Generating rebuttal for ${position} position, round ${round}`);
+    this.logger.log(
+      `Generating rebuttal for ${position} position, round ${round}`,
+    );
 
     const positionText = position === 'yes' ? 'FOR' : 'AGAINST';
     const opponentPosition = position === 'yes' ? 'AGAINST' : 'FOR';
@@ -119,12 +135,13 @@ ${openingStatement}`;
 
     const systemMessage = new SystemMessage(systemContext);
 
-    const userPrompt = round === 1
-      ? `This is Rebuttal Round ${round}. Analyze your opponent's opening statement carefully. Dissect their arguments, identify weaknesses, logical fallacies, or unsupported claims. Present strong counterarguments and defend your position. Be thorough and persuasive.
+    const userPrompt =
+      round === 1
+        ? `This is Rebuttal Round ${round}. Analyze your opponent's opening statement carefully. Dissect their arguments, identify weaknesses, logical fallacies, or unsupported claims. Present strong counterarguments and defend your position. Be thorough and persuasive.
 
 Your opponent's opening statement (${opponentPosition} side):
 ${opponentArguments}`
-      : `This is Rebuttal Round ${round}. Focus on your opponent's arguments from the previous round. Address their specific points, counter their rebuttals, and strengthen your position. Be direct, logical, and persuasive.
+        : `This is Rebuttal Round ${round}. Focus on your opponent's arguments from the previous round. Address their specific points, counter their rebuttals, and strengthen your position. Be direct, logical, and persuasive.
 
 Your opponent's argument from Rebuttal Round ${round - 1} (${opponentPosition} side):
 ${opponentArguments}`;
@@ -132,8 +149,14 @@ ${opponentArguments}`;
     const userMessage = new HumanMessage(userPrompt);
 
     try {
-      const response = await this.chatModel.invoke([systemMessage, userMessage]);
-      const content = typeof response.content === 'string' ? response.content : String(response.content);
+      const response = await this.chatModel.invoke([
+        systemMessage,
+        userMessage,
+      ]);
+      const content =
+        typeof response.content === 'string'
+          ? response.content
+          : String(response.content);
       const usage = this.chatModel.getLastUsage();
 
       return {
@@ -141,7 +164,8 @@ ${opponentArguments}`;
         usage,
       };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
       this.logger.error(`Error generating rebuttal: ${errorMessage}`);
       throw new Error(`Failed to generate rebuttal: ${errorMessage}`);
     }
@@ -154,7 +178,11 @@ ${opponentArguments}`;
     topic: string,
     position: 'yes' | 'no',
     openingStatement: string,
-    debateHistory: Array<{ yesMessage: string; noMessage: string; round: number }>,
+    debateHistory: Array<{
+      yesMessage: string;
+      noMessage: string;
+      round: number;
+    }>,
   ): Promise<DebaterResponse> {
     this.logger.log(`Generating conclusion for ${position} position`);
 
@@ -163,8 +191,10 @@ ${opponentArguments}`;
     // Build complete debate history
     let debateHistoryText = `Your opening statement:\n${openingStatement}\n\n`;
     for (const round of debateHistory) {
-      const opponentArg = position === 'yes' ? round.noMessage : round.yesMessage;
-      const myRebuttal = position === 'yes' ? round.yesMessage : round.noMessage;
+      const opponentArg =
+        position === 'yes' ? round.noMessage : round.yesMessage;
+      const myRebuttal =
+        position === 'yes' ? round.yesMessage : round.noMessage;
       debateHistoryText += `Rebuttal Round ${round.round} - Your opponent's argument:\n${opponentArg}\n\n`;
       debateHistoryText += `Rebuttal Round ${round.round} - Your rebuttal:\n${myRebuttal}\n\n`;
     }
@@ -194,7 +224,10 @@ Provide your complete concluding statement now.`;
 
     try {
       const response = await this.chatModel.invoke(messages);
-      const content = typeof response.content === 'string' ? response.content : String(response.content);
+      const content =
+        typeof response.content === 'string'
+          ? response.content
+          : String(response.content);
       const usage = this.chatModel.getLastUsage();
 
       return {
@@ -202,10 +235,10 @@ Provide your complete concluding statement now.`;
         usage,
       };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
       this.logger.error(`Error generating conclusion: ${errorMessage}`);
       throw new Error(`Failed to generate conclusion: ${errorMessage}`);
     }
   }
 }
-

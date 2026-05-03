@@ -5,7 +5,10 @@
 import { Logger } from '@nestjs/common';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { HumanMessage } from '@langchain/core/messages';
-import { createOpenRouterChatModel, OpenRouterChatModelConfig } from './openrouter-chat-model';
+import {
+  createOpenRouterChatModel,
+  OpenRouterChatModelConfig,
+} from './openrouter-chat-model';
 
 export interface TitleGeneratorAgentConfig {
   model: string;
@@ -48,16 +51,21 @@ export class TitleGeneratorAgent {
     `;
 
     try {
-      const response = await this.chatModel.invoke([new HumanMessage(titlePrompt)]);
-      const title = typeof response.content === 'string' ? response.content : String(response.content);
+      const response = await this.chatModel.invoke([
+        new HumanMessage(titlePrompt),
+      ]);
+      const title =
+        typeof response.content === 'string'
+          ? response.content
+          : String(response.content);
 
       this.logger.log(`Title generated: ${title}`);
       return title.trim();
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
       this.logger.error(`Error generating title: ${errorMessage}`);
       throw new Error(`Failed to generate title: ${errorMessage}`);
     }
   }
 }
-

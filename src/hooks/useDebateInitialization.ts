@@ -65,7 +65,7 @@ export function useDebateInitialization({
    */
   const validateAndGetApiKey = useCallback((): string | null => {
     const storedApiKey = getItemRaw(STORAGE_KEYS.API_KEY);
-    if (!storedApiKey || !storedApiKey.trim()) {
+    if (!storedApiKey?.trim()) {
       onError("OpenRouter API key is required. Please go back and enter your API key.");
       return null;
     }

@@ -134,10 +134,7 @@ export function parseWinner(text: string): 'yes' | 'no' | 'tie' | undefined {
   if (upperText.includes('FOR WINS') || upperText.includes('FOR WON')) {
     return 'yes';
   }
-  if (
-    upperText.includes('AGAINST WINS') ||
-    upperText.includes('AGAINST WON')
-  ) {
+  if (upperText.includes('AGAINST WINS') || upperText.includes('AGAINST WON')) {
     return 'no';
   }
   if (upperText.includes('TIE') || upperText.includes('DRAW')) {

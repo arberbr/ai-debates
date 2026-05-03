@@ -10,7 +10,6 @@ import {
   BadRequestException,
   Res,
   Logger,
-  Headers,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { DebateService } from './debate.service';
@@ -27,7 +26,10 @@ import { DEBATE_CONFIG } from '../common/config';
 import { sanitizeInput } from '../common/utils';
 import { ExtractApiKey } from '../common/decorators/api-key.decorator';
 import { DEBATE_CONSTANTS } from '../common/constants/debate.constants';
-import { ApiKeyError, ValidationError } from '../common/exceptions/debate.exceptions';
+import {
+  ApiKeyError,
+  ValidationError,
+} from '../common/exceptions/debate.exceptions';
 
 @Controller('api/debate')
 export class DebateController {
@@ -72,7 +74,10 @@ export class DebateController {
     res.setHeader('Content-Type', DEBATE_CONSTANTS.SSE.HEADERS.CONTENT_TYPE);
     res.setHeader('Cache-Control', DEBATE_CONSTANTS.SSE.HEADERS.CACHE_CONTROL);
     res.setHeader('Connection', DEBATE_CONSTANTS.SSE.HEADERS.CONNECTION);
-    res.setHeader('X-Accel-Buffering', DEBATE_CONSTANTS.SSE.HEADERS.X_ACCEL_BUFFERING);
+    res.setHeader(
+      'X-Accel-Buffering',
+      DEBATE_CONSTANTS.SSE.HEADERS.X_ACCEL_BUFFERING,
+    );
 
     // Send initial stream start event
     this.sendSSEEvent(res, {
@@ -87,7 +92,10 @@ export class DebateController {
     try {
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(
-          () => reject(new Error('Debate timeout: Process exceeded maximum time limit')),
+          () =>
+            reject(
+              new Error('Debate timeout: Process exceeded maximum time limit'),
+            ),
           DEBATE_CONFIG.timeouts.overallDebate,
         );
       });
@@ -97,7 +105,8 @@ export class DebateController {
         timeoutPromise,
       ]);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
       this.sendSSEEvent(res, {
         type: 'error',
         stage: 'error',
@@ -157,9 +166,12 @@ export class DebateController {
         title,
       };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
       this.logger.error('Title generation failed:', error);
-      throw new BadRequestException(`Failed to generate title: ${errorMessage}`);
+      throw new BadRequestException(
+        `Failed to generate title: ${errorMessage}`,
+      );
     }
   }
 
@@ -184,8 +196,14 @@ export class DebateController {
   ): Promise<void> {
     // Sanitize inputs
     const topic = sanitizeInput(dto.topic, DEBATE_CONSTANTS.TOPIC.MAX_LENGTH);
-    const yesModel = sanitizeInput(dto.yesModel, DEBATE_CONSTANTS.MODEL.MAX_LENGTH);
-    const noModel = sanitizeInput(dto.noModel, DEBATE_CONSTANTS.MODEL.MAX_LENGTH);
+    const yesModel = sanitizeInput(
+      dto.yesModel,
+      DEBATE_CONSTANTS.MODEL.MAX_LENGTH,
+    );
+    const noModel = sanitizeInput(
+      dto.noModel,
+      DEBATE_CONSTANTS.MODEL.MAX_LENGTH,
+    );
     const rounds = dto.rounds;
     const judgePrompt = dto.judgePrompt
       ? sanitizeInput(dto.judgePrompt, DEBATE_CONSTANTS.JUDGE_PROMPT.MAX_LENGTH)
@@ -225,7 +243,8 @@ export class DebateController {
 
     try {
       // Use provided title or generate fallback from topic
-      const debateTitle = dto.title?.trim() || originalTopic.split('\n')[0].substring(0, 80).trim();
+      const debateTitle =
+        title?.trim() || originalTopic.split('\n')[0].substring(0, 80).trim();
 
       // Stage 1: Generate opening statements
       this.sendSSEEvent(res, {
@@ -264,7 +283,10 @@ export class DebateController {
           timestamp: new Date().toISOString(),
         });
       } catch (openingError: unknown) {
-        const errorMessage = openingError instanceof Error ? openingError.message : 'Unknown error occurred during opening statements';
+        const errorMessage =
+          openingError instanceof Error
+            ? openingError.message
+            : 'Unknown error occurred during opening statements';
         this.sendSSEEvent(res, {
           type: 'error',
           stage: 'error',
@@ -329,7 +351,10 @@ export class DebateController {
             timestamp: new Date().toISOString(),
           });
         } catch (roundError: unknown) {
-          const errorMessage = roundError instanceof Error ? roundError.message : 'Unknown error occurred during rebuttal round';
+          const errorMessage =
+            roundError instanceof Error
+              ? roundError.message
+              : 'Unknown error occurred during rebuttal round';
           this.sendSSEEvent(res, {
             type: 'error',
             stage: 'error',
@@ -390,7 +415,10 @@ export class DebateController {
           timestamp: new Date().toISOString(),
         });
       } catch (conclusionError: unknown) {
-        const errorMessage = conclusionError instanceof Error ? conclusionError.message : 'Unknown error occurred during conclusions';
+        const errorMessage =
+          conclusionError instanceof Error
+            ? conclusionError.message
+            : 'Unknown error occurred during conclusions';
         this.sendSSEEvent(res, {
           type: 'error',
           stage: 'error',
@@ -404,7 +432,7 @@ export class DebateController {
 
       // Stage 5: Judge evaluation
       this.logger.log(`[${debateId}] Starting judge evaluation stage`);
-      
+
       this.sendSSEEvent(res, {
         type: 'judging_start',
         stage: 'judging_start',
@@ -418,7 +446,9 @@ export class DebateController {
       const judgeEvaluations: JudgeEvaluation[] = [];
 
       for (const judgeModel of uniqueJudgeModels) {
-        this.logger.log(`[${debateId}] Starting evaluation with judge: ${judgeModel}`);
+        this.logger.log(
+          `[${debateId}] Starting evaluation with judge: ${judgeModel}`,
+        );
         try {
           this.sendSSEEvent(res, {
             type: 'status_update',
@@ -449,7 +479,9 @@ export class DebateController {
           );
 
           judgeEvaluations.push(evaluation);
-          this.logger.log(`[${debateId}] Judge ${judgeModel} evaluation completed successfully`);
+          this.logger.log(
+            `[${debateId}] Judge ${judgeModel} evaluation completed successfully`,
+          );
 
           this.sendSSEEvent(res, {
             type: 'judge_complete',
@@ -460,8 +492,14 @@ export class DebateController {
             timestamp: new Date().toISOString(),
           });
         } catch (judgeError: unknown) {
-          const errorMessage = judgeError instanceof Error ? judgeError.message : 'Unknown error occurred during judge evaluation';
-          this.logger.error(`[${debateId}] Judge ${judgeModel} evaluation failed:`, judgeError);
+          const errorMessage =
+            judgeError instanceof Error
+              ? judgeError.message
+              : 'Unknown error occurred during judge evaluation';
+          this.logger.error(
+            `[${debateId}] Judge ${judgeModel} evaluation failed:`,
+            judgeError,
+          );
           this.sendSSEEvent(res, {
             type: 'error',
             stage: 'error',
@@ -473,11 +511,14 @@ export class DebateController {
           // Continue with other judges even if one fails
         }
       }
-      
-      this.logger.log(`[${debateId}] Judge evaluation stage complete. Processed ${judgeEvaluations.length} of ${uniqueJudgeModels.length} judges`);
+
+      this.logger.log(
+        `[${debateId}] Judge evaluation stage complete. Processed ${judgeEvaluations.length} of ${uniqueJudgeModels.length} judges`,
+      );
 
       // Calculate final result
-      const finalResult = this.debateService.calculateFinalResult(judgeEvaluations);
+      const finalResult =
+        this.debateService.calculateFinalResult(judgeEvaluations);
 
       this.sendSSEEvent(res, {
         type: 'judging_complete',
@@ -513,7 +554,8 @@ export class DebateController {
         timestamp: new Date().toISOString(),
       });
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
       this.sendSSEEvent(res, {
         type: 'error',
         stage: 'error',

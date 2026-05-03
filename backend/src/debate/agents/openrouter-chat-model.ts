@@ -3,7 +3,10 @@
  * Creates a custom BaseChatModel that wraps OpenRouter API calls.
  */
 
-import { BaseChatModel, BaseChatModelCallOptions } from '@langchain/core/language_models/chat_models';
+import {
+  BaseChatModel,
+  BaseChatModelCallOptions,
+} from '@langchain/core/language_models/chat_models';
 import {
   HumanMessage,
   SystemMessage,
@@ -80,8 +83,8 @@ export class OpenRouterChatModel extends BaseChatModel {
    */
   async _generate(
     messages: BaseMessage[],
-    options?: BaseChatModelCallOptions,
-    runManager?: CallbackManagerForLLMRun,
+    _options?: BaseChatModelCallOptions,
+    _runManager?: CallbackManagerForLLMRun,
   ): Promise<ChatResult> {
     const openRouterMessages = this.convertMessagesToOpenRouterFormat(messages);
 
@@ -154,4 +157,3 @@ export function convertMessagesToOpenRouterFormat(
     return { role: 'user', content: String(msg.content) };
   });
 }
-

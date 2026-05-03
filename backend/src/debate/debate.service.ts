@@ -19,11 +19,6 @@ import { DEBATE_CONFIG } from '../common/config';
 import { DebaterAgent } from './agents/debater-agent';
 import { JudgeAgent } from './agents/judge-agent';
 import { TitleGeneratorAgent } from './agents/title-generator-agent';
-import {
-  parseScores,
-  parseWinner,
-  extractReasoning,
-} from '../common/utils/judge-parser.util';
 
 @Injectable()
 export class DebateService {
@@ -37,12 +32,14 @@ export class DebateService {
     newUsage: OpenRouterUsageData | undefined,
   ): UsageData {
     if (!newUsage) {
-      return current || {
-        prompt_tokens: 0,
-        completion_tokens: 0,
-        total_tokens: 0,
-        cost: 0,
-      };
+      return (
+        current || {
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: 0,
+          cost: 0,
+        }
+      );
     }
 
     const existing = current || {
@@ -65,8 +62,10 @@ export class DebateService {
     };
 
     return {
-      prompt_tokens: (existing.prompt_tokens || 0) + (newUsage.prompt_tokens || 0),
-      completion_tokens: (existing.completion_tokens || 0) + (newUsage.completion_tokens || 0),
+      prompt_tokens:
+        (existing.prompt_tokens || 0) + (newUsage.prompt_tokens || 0),
+      completion_tokens:
+        (existing.completion_tokens || 0) + (newUsage.completion_tokens || 0),
       total_tokens: (existing.total_tokens || 0) + (newUsage.total_tokens || 0),
       cost: (existing.cost || 0) + (newUsage.cost || 0),
       cost_details: {
@@ -103,10 +102,10 @@ export class DebateService {
     topic: string,
     apiKey: string | null,
     onStatusUpdate?: (status: string) => void,
-    usageAccumulator?: { usage: UsageData },
+    _usageAccumulator?: { usage: UsageData },
   ): Promise<string> {
     this.logger.log('Generating title...');
-    
+
     if (!apiKey) {
       throw new Error('OpenRouter API key is required');
     }
@@ -163,8 +162,12 @@ export class DebateService {
 
     // Generate opening statements in parallel using agents
     if (onStatusUpdate) {
-      onStatusUpdate(`Querying ${yesModel} for opening statement (FOR side)...`);
-      onStatusUpdate(`Querying ${noModel} for opening statement (AGAINST side)...`);
+      onStatusUpdate(
+        `Querying ${yesModel} for opening statement (FOR side)...`,
+      );
+      onStatusUpdate(
+        `Querying ${noModel} for opening statement (AGAINST side)...`,
+      );
     }
 
     const yesAgent = new DebaterAgent({
@@ -186,7 +189,10 @@ export class DebateService {
     const [yesResponse, noResponse] = await Promise.all([
       yesAgent.generateOpeningStatement(topic, 'yes').then((response) => {
         if (usageAccumulator && response.usage) {
-          usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
+          usageAccumulator.usage = this.accumulateUsage(
+            usageAccumulator.usage,
+            response.usage,
+          );
         }
         if (onStatusUpdate) {
           onStatusUpdate(`${yesModel} opening statement complete`);
@@ -195,7 +201,10 @@ export class DebateService {
       }),
       noAgent.generateOpeningStatement(topic, 'no').then((response) => {
         if (usageAccumulator && response.usage) {
-          usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
+          usageAccumulator.usage = this.accumulateUsage(
+            usageAccumulator.usage,
+            response.usage,
+          );
         }
         if (onStatusUpdate) {
           onStatusUpdate(`${noModel} opening statement complete`);
@@ -258,8 +267,12 @@ export class DebateService {
 
     // Get responses in parallel using agents
     if (onStatusUpdate) {
-      onStatusUpdate(`Waiting for ${yesModel} rebuttal (FOR side, round ${round})...`);
-      onStatusUpdate(`Waiting for ${noModel} rebuttal (AGAINST side, round ${round})...`);
+      onStatusUpdate(
+        `Waiting for ${yesModel} rebuttal (FOR side, round ${round})...`,
+      );
+      onStatusUpdate(
+        `Waiting for ${noModel} rebuttal (AGAINST side, round ${round})...`,
+      );
     }
 
     const yesAgent = new DebaterAgent({
@@ -281,7 +294,9 @@ export class DebateService {
     // Determine opponent arguments based on round
     let yesOpponentArgs: string;
     let noOpponentArgs: string;
-    let previousRoundsForHistory: Array<{ yesMessage: string; noMessage: string; round: number }> | undefined;
+    let previousRoundsForHistory:
+      | Array<{ yesMessage: string; noMessage: string; round: number }>
+      | undefined;
 
     if (round === 1) {
       // First rebuttal: use opponent's opening statement
@@ -311,7 +326,10 @@ export class DebateService {
         )
         .then((response) => {
           if (usageAccumulator && response.usage) {
-            usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
+            usageAccumulator.usage = this.accumulateUsage(
+              usageAccumulator.usage,
+              response.usage,
+            );
           }
           if (onStatusUpdate) {
             onStatusUpdate(`${yesModel} rebuttal received for round ${round}`);
@@ -323,7 +341,9 @@ export class DebateService {
           if (onStatusUpdate) {
             onStatusUpdate(`Error from ${yesModel}: ${error.message}`);
           }
-          throw new Error(`Failed to get response from ${yesModel}: ${error.message}`);
+          throw new Error(
+            `Failed to get response from ${yesModel}: ${error.message}`,
+          );
         }),
       noAgent
         .generateRebuttal(
@@ -336,7 +356,10 @@ export class DebateService {
         )
         .then((response) => {
           if (usageAccumulator && response.usage) {
-            usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
+            usageAccumulator.usage = this.accumulateUsage(
+              usageAccumulator.usage,
+              response.usage,
+            );
           }
           if (onStatusUpdate) {
             onStatusUpdate(`${noModel} rebuttal received for round ${round}`);
@@ -348,16 +371,22 @@ export class DebateService {
           if (onStatusUpdate) {
             onStatusUpdate(`Error from ${noModel}: ${error.message}`);
           }
-          throw new Error(`Failed to get response from ${noModel}: ${error.message}`);
+          throw new Error(
+            `Failed to get response from ${noModel}: ${error.message}`,
+          );
         }),
     ]);
 
     if (!yesResponse || !yesResponse.content) {
-      throw new Error(`Failed to generate rebuttal from ${yesModel}. The model may have insufficient credits or encountered an error.`);
+      throw new Error(
+        `Failed to generate rebuttal from ${yesModel}. The model may have insufficient credits or encountered an error.`,
+      );
     }
 
     if (!noResponse || !noResponse.content) {
-      throw new Error(`Failed to generate rebuttal from ${noModel}. The model may have insufficient credits or encountered an error.`);
+      throw new Error(
+        `Failed to generate rebuttal from ${noModel}. The model may have insufficient credits or encountered an error.`,
+      );
     }
 
     const yesMessage: DebateMessage = {
@@ -434,10 +463,18 @@ export class DebateService {
 
     const [yesResponse, noResponse] = await Promise.all([
       yesAgent
-        .generateConclusion(topic, 'yes', openingStatements.yesStatement.content, debateHistory)
+        .generateConclusion(
+          topic,
+          'yes',
+          openingStatements.yesStatement.content,
+          debateHistory,
+        )
         .then((response) => {
           if (usageAccumulator && response.usage) {
-            usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
+            usageAccumulator.usage = this.accumulateUsage(
+              usageAccumulator.usage,
+              response.usage,
+            );
           }
           if (onStatusUpdate) {
             onStatusUpdate(`${yesModel} conclusion complete`);
@@ -445,10 +482,18 @@ export class DebateService {
           return response;
         }),
       noAgent
-        .generateConclusion(topic, 'no', openingStatements.noStatement.content, debateHistory)
+        .generateConclusion(
+          topic,
+          'no',
+          openingStatements.noStatement.content,
+          debateHistory,
+        )
         .then((response) => {
           if (usageAccumulator && response.usage) {
-            usageAccumulator.usage = this.accumulateUsage(usageAccumulator.usage, response.usage);
+            usageAccumulator.usage = this.accumulateUsage(
+              usageAccumulator.usage,
+              response.usage,
+            );
           }
           if (onStatusUpdate) {
             onStatusUpdate(`${noModel} conclusion complete`);
@@ -499,14 +544,16 @@ export class DebateService {
     judgePrompt: string,
     apiKey: string | null,
     onStatusUpdate?: (status: string) => void,
-    usageAccumulator?: { usage: UsageData },
+    _usageAccumulator?: { usage: UsageData },
   ): Promise<JudgeEvaluation> {
     if (!apiKey) {
       throw new Error('OpenRouter API key is required');
     }
 
     if (onStatusUpdate) {
-      onStatusUpdate(`Sending debate transcript to ${judgeModel} for evaluation...`);
+      onStatusUpdate(
+        `Sending debate transcript to ${judgeModel} for evaluation...`,
+      );
     }
 
     const judgeAgent = new JudgeAgent({
@@ -516,12 +563,20 @@ export class DebateService {
     });
 
     const evaluation = await judgeAgent
-      .evaluateDebate(topic, openingStatements, rebuttalRounds, conclusions, judgePrompt || undefined)
+      .evaluateDebate(
+        topic,
+        openingStatements,
+        rebuttalRounds,
+        conclusions,
+        judgePrompt || undefined,
+      )
       .then((result) => {
         // Note: JudgeAgent doesn't currently return usage data directly
         // Usage tracking would need to be added if required
         if (onStatusUpdate) {
-          onStatusUpdate(`${judgeModel} evaluation response received, parsing...`);
+          onStatusUpdate(
+            `${judgeModel} evaluation response received, parsing...`,
+          );
         }
         return result;
       });
@@ -529,16 +584,13 @@ export class DebateService {
     return evaluation;
   }
 
-  // Note: Parsing methods moved to common/utils/judge-parser.util.ts
-  // to avoid code duplication. These methods are now imported and used
-  // via parseScores, parseWinner, and extractReasoning utilities.
-
   /**
    * Calculate aggregate scores and determine final winner.
    */
-  calculateFinalResult(
-    judgeEvaluations: JudgeEvaluation[],
-  ): { winner: 'yes' | 'no' | 'tie'; aggregateScore: { yes: number; no: number } } {
+  calculateFinalResult(judgeEvaluations: JudgeEvaluation[]): {
+    winner: 'yes' | 'no' | 'tie';
+    aggregateScore: { yes: number; no: number };
+  } {
     let totalYes = 0;
     let totalNo = 0;
     let count = 0;

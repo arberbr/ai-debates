@@ -52,7 +52,7 @@ export class DebateStatusService {
   private cleanupOldStatuses(): void {
     const now = Date.now();
     let cleanedCount = 0;
-    
+
     for (const [id, status] of this.statuses.entries()) {
       const age = now - new Date(status.timestamp).getTime();
       if (age > this.MAX_STATUS_AGE) {
@@ -60,7 +60,7 @@ export class DebateStatusService {
         cleanedCount++;
       }
     }
-    
+
     if (cleanedCount > 0) {
       this.logger.log(`Cleaned up ${cleanedCount} old status entries`);
     }

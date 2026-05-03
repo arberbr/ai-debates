@@ -21,4 +21,3 @@ import { DebateModule } from './debate/debate.module';
   ],
 })
 export class AppModule {}
-

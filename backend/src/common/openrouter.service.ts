@@ -78,12 +78,15 @@ export class OpenRouterService {
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
       this.logger.log(`Querying model: ${model}`);
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
+      const response = await fetch(
+        'https://openrouter.ai/api/v1/chat/completions',
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        },
+      );
 
       clearTimeout(timeoutId);
 
@@ -109,10 +112,12 @@ export class OpenRouterService {
 
       const message = data.choices[0].message;
       const usage = data.usage || undefined;
-      
+
       this.logger.log(`Successfully received response from ${model}`);
       if (usage) {
-        this.logger.log(`Usage: ${usage.total_tokens || 0} tokens, Cost: $${usage.cost || 0}`);
+        this.logger.log(
+          `Usage: ${usage.total_tokens || 0} tokens, Cost: $${usage.cost || 0}`,
+        );
       }
 
       return {
@@ -122,15 +127,11 @@ export class OpenRouterService {
       };
     } catch (error: unknown) {
       if (error instanceof Error && error.name === 'AbortError') {
-        this.logger.error(
-          `Timeout querying model ${model} after ${timeout}ms`,
-        );
+        this.logger.error(`Timeout querying model ${model} after ${timeout}ms`);
       } else {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-        this.logger.error(
-          `Error querying model ${model}:`,
-          errorMessage,
-        );
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error occurred';
+        this.logger.error(`Error querying model ${model}:`, errorMessage);
         if (error instanceof Error && error.stack) {
           this.logger.error(`Stack trace:`, error.stack);
         }
@@ -177,7 +178,9 @@ export class OpenRouterService {
     );
 
     if (successCount === 0) {
-      this.logger.error('All model queries failed! Check your API key and try again.');
+      this.logger.error(
+        'All model queries failed! Check your API key and try again.',
+      );
     }
 
     return result;

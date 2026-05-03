@@ -50,7 +50,7 @@ export function useDebateFormSubmission({
    */
   const validateApiKey = useCallback((): string | null => {
     const currentApiKey = getItemRaw(STORAGE_KEYS.API_KEY);
-    if (!currentApiKey || !currentApiKey.trim()) {
+    if (!currentApiKey?.trim()) {
       toast.error("Please enter your OpenRouter API key");
       setShowApiKeyField(true);
       return null;

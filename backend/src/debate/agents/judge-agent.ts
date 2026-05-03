@@ -5,8 +5,15 @@
 import { Logger } from '@nestjs/common';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { HumanMessage } from '@langchain/core/messages';
-import { createOpenRouterChatModel, OpenRouterChatModelConfig } from './openrouter-chat-model';
-import { OpeningStatements, DebateRound, Conclusions } from '../interfaces/debate.interface';
+import {
+  createOpenRouterChatModel,
+  OpenRouterChatModelConfig,
+} from './openrouter-chat-model';
+import {
+  OpeningStatements,
+  DebateRound,
+  Conclusions,
+} from '../interfaces/debate.interface';
 import { JudgeEvaluation } from '../interfaces/debate.interface';
 import {
   parseScores,
@@ -47,7 +54,9 @@ export class JudgeAgent {
     customPrompt?: string,
   ): Promise<JudgeEvaluation> {
     const startTime = Date.now();
-    this.logger.log(`Starting evaluation for debate with ${rebuttalRounds.length} rebuttal rounds`);
+    this.logger.log(
+      `Starting evaluation for debate with ${rebuttalRounds.length} rebuttal rounds`,
+    );
 
     // Build complete debate transcript
     let transcript = '=== OPENING STATEMENTS ===\n\n';
@@ -129,14 +138,19 @@ REASONING:
 
     try {
       const response = await this.chatModel.invoke(messages);
-      const evaluationText = typeof response.content === 'string' ? response.content : String(response.content);
+      const evaluationText =
+        typeof response.content === 'string'
+          ? response.content
+          : String(response.content);
 
       // Parse the evaluation using shared utilities
       const scores = parseScores(evaluationText);
       const winner = parseWinner(evaluationText);
 
       const duration = Date.now() - startTime;
-      this.logger.log(`Evaluation completed in ${duration}ms. Winner: ${winner || 'undetermined'}`);
+      this.logger.log(
+        `Evaluation completed in ${duration}ms. Winner: ${winner || 'undetermined'}`,
+      );
 
       return {
         judgeModel: this.modelName,
@@ -146,7 +160,8 @@ REASONING:
         reasoning: extractReasoning(evaluationText),
       };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
       this.logger.error(`Error evaluating debate: ${errorMessage}`);
       throw new Error(`Failed to evaluate debate: ${errorMessage}`);
     }
@@ -156,4 +171,3 @@ REASONING:
   // to avoid code duplication. These methods are now imported and used
   // via parseScores, parseWinner, and extractReasoning utilities.
 }
-
